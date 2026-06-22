@@ -1,0 +1,55 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "RUSTUP_HOME",
+    "CARGO_HOME",
+    "RUSTUP_TOOLCHAIN",
+    "RUSTFLAGS",
+    "CARGO_INCREMENTAL",
+    "CARGO_TARGET_DIR",
+    "VCPKG_ROOT",
+    "VCPKGRS_TRIPLET",
+    "VCPKGRS_DYNAMIC",
+    "LIBCZI_INCLUDE_DIR",
+    "LIBCZI_LIB_DIR",
+    "LIBCZI_LIB_NAME",
+    "LIBCZI_STATIC",
+    "ND2READSDK_DIR",
+    "VITE_LISCA_WEBSOCKET_URL",
+    "LISCA_WEBSOCKET_ADDR",
+    "LISCA_WEBSOCKET_URL"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:server": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:web": {
+      "cache": false,
+      "persistent": true
+    },
+    "release": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "check:tauri": {
+      "cache": false
+    }
+  }
+}

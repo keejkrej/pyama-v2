@@ -1,0 +1,28 @@
+[package]
+name = "lisca"
+version = "0.2.0"
+edition = "2021"
+
+[[bin]]
+name = "crop-profiler"
+path = "src/bin/crop-profiler.rs"
+required-features = ["viewer"]
+
+[features]
+default = []
+viewer = ["nd2", "czi"]
+nd2 = ["dep:nd2-rs"]
+czi = ["dep:czi-rs"]
+
+[dependencies]
+base64 = "0.22"
+csv = "1.4"
+czi-rs = { package = "czisdk-rs", git = "https://github.com/keejkrej/czisdk-rs", optional = true }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+nd2-rs = { package = "nd2sdk-rs", git = "https://github.com/keejkrej/nd2sdk-rs", optional = true }
+png = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tiff = "0.10"
+time = { version = "0.3", features = ["formatting"] }
+walkdir = "2.5"

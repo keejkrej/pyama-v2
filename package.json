@@ -1,0 +1,25 @@
+{
+  "name": "lisca-monorepo",
+  "private": true,
+  "packageManager": "bun@1.2.22",
+  "workspaces": [
+    "packages/lisca/typescript",
+    "apps/viewer"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "build:viewer": "turbo run build --filter=viewer",
+    "dev:viewer": "turbo run dev --filter=viewer",
+    "dev:viewer-server": "turbo run dev:server --filter=viewer",
+    "dev:viewer-web": "turbo run dev:web --filter=viewer",
+    "release:viewer": "turbo run release --filter=viewer",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "check:tauri": "turbo run check:tauri",
+    "check:rust": "cargo check --workspace",
+    "check": "bun run typecheck && bun run check:rust"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.6"
+  }
+}

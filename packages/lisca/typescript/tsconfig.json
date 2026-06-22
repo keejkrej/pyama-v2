@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
+    "types": ["bun"],
+    "paths": {
+      "lisca": ["./src/index.ts"],
+      "lisca/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "test"]
+}
