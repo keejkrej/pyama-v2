@@ -1,17 +1,18 @@
 # LISCA Viewer
 
-This repository contains the LISCA desktop viewer application and the shared libraries it depends on.
+This repository contains the LISCA desktop viewer application, the shared libraries it depends on, and the `transfection` Python package for microscopy ROI extraction and timeseries analysis.
 
 - `packages/lisca/typescript`: shared TypeScript viewer contracts, state, UI, and host integration
 - `packages/lisca/rust`: shared Rust native backend for viewer workflows
 - `apps/viewer`: standalone Tauri viewer shell
+- `src/transfection`: Python package for slide mapping, segmentation masks, timeseries metrics, AUC, and curve fitting
 
 ## Architecture
 
 - Rust `lisca` provides `lisca::viewer::*` as the native desktop/backend layer for viewer operations.
 - TypeScript `lisca` provides `lisca/viewer/*` and `lisca/shared/*` as the frontend/viewer layer.
 
-The repository root is workspace-only. TypeScript and Rust packages live at their language-specific package roots.
+The repository root is workspace-only. TypeScript and Rust packages live at their language-specific package roots. The `transfection` package is managed by `uv` and `pyproject.toml`.
 
 ## Tasks
 
@@ -38,3 +39,39 @@ The packaged `viewer` binary exposes the same CLI:
 **Split dev:** `dev:web` is Vite. `dev:server` runs `cargo watch … server --lan` inside `src-tauri` so Rust edits rebuild like `tauri dev`. Requires [cargo-watch](https://github.com/watchexec/cargo-watch) (`cargo install cargo-watch`). Pair with `dev:viewer-web` from the repo root as needed.
 
 Rust remains managed by Cargo directly via `bun run check:rust` or plain `cargo` commands.
+
+## transfection
+
+`transfection` is a Python CLI for processing microscopy datasets.
+
+Pipeline: `slide` → `segment` → `timeseries` → `plot-timeseries` → `auc` → `plot-auc` → `fit` → `plot-fit`
+
+### Install
+
+From the repo root, run the platform-specific install script. It downloads `uv` if missing, creates a virtual environment, and installs the package.
+
+- macOS / Linux:
+  ```bash
+  bash scripts/install.sh
+  ```
+- Windows:
+  ```powershell
+  .\scripts\install.ps1
+  ```
+
+### Run the CLI
+
+After install, run commands with `uv`:
+
+```bash
+uv run transfection --help
+```
+
+### Interactive scripts
+
+For convenience, two interactive shell scripts walk through common pipelines:
+
+- `bash scripts/transfection-slide.sh` — build a `slide.json` channel mapping file.
+- `bash scripts/transfection-analyze.sh` — run the full analysis pipeline on a dataset.
+
+Windows equivalents are `scripts/transfection-slide.ps1` and `scripts/transfection-analyze.ps1`.
