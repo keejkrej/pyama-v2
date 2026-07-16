@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { QueryProvider } from "@/shared/query";
+import { QueryProvider } from "@/lib/query";
 import "./fonts.css";
-import "@/viewer/react/app/viewer.css";
+import "./styles/app.css";
 
 import App from "./App";
 
