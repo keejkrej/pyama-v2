@@ -22,14 +22,14 @@ import type {
   CanvasPointerEvent,
   CanvasSurfaceProps,
   CanvasWheelEvent,
-} from "./canvasTypes";
+} from "./canvas-types";
 
 export type {
   CanvasFramePoint,
   CanvasPointerEvent,
   CanvasSurfaceProps,
   CanvasWheelEvent,
-} from "./canvasTypes";
+} from "./canvas-types";
 
 interface PreparedFrame {
   frame: FrameResult;

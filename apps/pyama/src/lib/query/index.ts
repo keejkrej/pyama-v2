@@ -5,16 +5,16 @@
  * (pixel buffers).
  */
 
-export { createQueryClient } from "./createQueryClient";
-export { QueryProvider } from "./QueryProvider";
-export { queryKeys } from "./queryKeys";
+export { createQueryClient } from "./create-query-client";
+export { QueryProvider } from "./query-provider";
+export { queryKeys } from "./query-keys";
 export {
   QUERY_STALE_TIME,
   alignStateQueryOptions,
   autoExcludePreviewQueryOptions,
   savedBboxPositionsQueryOptions,
   scanSourceQueryOptions,
-} from "./queryOptions";
+} from "./query-options";
 export {
   useAlignStateQuery,
   useAutoExcludePreviewQuery,

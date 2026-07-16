@@ -17,13 +17,13 @@ import type {
   WorkspaceScan,
 } from "@/lib/contracts";
 
-import { queryKeys } from "./queryKeys";
+import { queryKeys } from "./query-keys";
 import {
   alignStateQueryOptions,
   autoExcludePreviewQueryOptions,
   savedBboxPositionsQueryOptions,
   scanSourceQueryOptions,
-} from "./queryOptions";
+} from "./query-options";
 
 type HookQueryOptions<T> = Omit<
   UseQueryOptions<T, Error, T, readonly unknown[]>,

@@ -9,7 +9,7 @@ import type {
   WorkspaceScan,
 } from "@/lib/contracts";
 
-import { queryKeys } from "./queryKeys";
+import { queryKeys } from "./query-keys";
 
 type AppQueryOptions<T> = UseQueryOptions<T, Error, T, readonly unknown[]>;
 

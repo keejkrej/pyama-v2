@@ -7,7 +7,7 @@ import { FolderOpen, HardDrive, X } from "lucide-react";
 
 import type { Source } from "@/lib/contracts";
 import { Button } from "@/components/ui";
-import { ContextSummary } from "@/components/ContextSummary";
+import { ContextSummary } from "@/components/context-summary";
 
 interface NavbarProps {
   workspacePath: string | null;

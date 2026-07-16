@@ -14,7 +14,7 @@ import {
 import type {
   CanvasPointerEvent,
   CanvasWheelEvent,
-} from "@/components/CanvasSurface";
+} from "@/components/canvas-surface";
 import {
   setGrid,
   toggleExcludedCells as toggleStoredExcludedCells,

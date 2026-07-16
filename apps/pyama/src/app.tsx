@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { useStore } from "zustand";
 
-import HostFilePickerDialog from "@/components/HostFilePickerDialog";
-import Workspace from "@/components/Workspace";
+import HostFilePickerDialog from "@/components/host-file-picker-dialog";
+import Workspace from "@/components/workspace";
 import { AnchoredToastProvider, ToastProvider } from "@/components/ui";
 import type { HostFilePickerMode } from "@/lib/contracts";
 import { makeSourceKey } from "@/lib/core";

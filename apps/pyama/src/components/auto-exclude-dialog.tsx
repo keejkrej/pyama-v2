@@ -14,8 +14,8 @@ import {
   scoreDomainForPreview,
   type AutoExcludeDomain,
   type AutoExcludeHistogramDatum,
-} from "@/components/AutoExclude";
-import { NumberInput } from "@/components/Controls";
+} from "@/components/auto-exclude";
+import { NumberInput } from "@/components/controls";
 import { SidebarField } from "@/components/sidebar";
 import { Button } from "@/components/ui";
 import {

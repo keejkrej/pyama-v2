@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import App from "../src/App";
-import CanvasSurface from "../src/components/CanvasSurface";
-import { NavigationControls } from "../src/components/NavigationControls";
+import App from "../src/app";
+import CanvasSurface from "../src/components/canvas-surface";
+import { NavigationControls } from "../src/components/navigation-controls";
 import {
   persistStoredString,
   readStoredStringWithFallback,

@@ -3,13 +3,13 @@ import type { MutableRefObject } from "react";
 
 import type { HostApi, Selection, Source } from "@/lib/contracts";
 import { makeFrameKey } from "@/lib/core";
-import type { FrameCache } from "@/lib/frameCache";
-import { loadFrameWithContrast } from "@/lib/loadFrame";
+import type { FrameCache } from "@/lib/frame-cache";
+import { loadFrameWithContrast } from "@/lib/load-frame";
 import { toErrorMessage } from "@/lib/errors";
 import type { ContrastMode } from "@/lib/store";
 import { patchViewState } from "@/lib/store";
 
-import { contrastWindowForFrame, normalizeContrastWindow } from "./frameContrast";
+import { contrastWindowForFrame, normalizeContrastWindow } from "./frame-contrast";
 
 export interface UseSourceFrameLoadArgs {
   api: HostApi | null;

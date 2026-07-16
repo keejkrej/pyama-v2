@@ -15,29 +15,29 @@ import {
   toggleExcludedCells as toggleExcludedCellCoords,
   type GridCellCoord,
 } from "@/lib/core";
-import { AutoExcludeDialog } from "@/components/AutoExcludeDialog";
+import { AutoExcludeDialog } from "@/components/auto-exclude-dialog";
 import {
   autoExcludeCount,
   clampThresholdToDomain,
   scoreDomainForPreview,
-} from "@/components/AutoExclude";
-import CanvasSurface from "@/components/CanvasSurface";
-import { FrameNavigation } from "@/components/FrameNavigation";
-import { GridSidebar } from "@/components/GridSidebar";
-import { IntensitySidebar } from "@/components/IntensitySidebar";
-import Navbar from "@/components/Navbar";
-import { SelectionSidebar } from "@/components/SelectionSidebar";
+} from "@/components/auto-exclude";
+import CanvasSurface from "@/components/canvas-surface";
+import { FrameNavigation } from "@/components/frame-navigation";
+import { GridSidebar } from "@/components/grid-sidebar";
+import { IntensitySidebar } from "@/components/intensity-sidebar";
+import Navbar from "@/components/navbar";
+import { SelectionSidebar } from "@/components/selection-sidebar";
 import {
   SidebarField,
   SidebarSection,
   SidebarValue,
 } from "@/components/sidebar";
 import { Button } from "@/components/ui";
-import { useGridCanvasInteraction } from "@/hooks/useGridCanvasInteraction";
-import { useSourceFrameLoad } from "@/hooks/useSourceFrameLoad";
-import { useWorkspaceScanSync } from "@/hooks/useWorkspaceScanSync";
+import { useGridCanvasInteraction } from "@/hooks/use-grid-canvas-interaction";
+import { useSourceFrameLoad } from "@/hooks/use-source-frame-load";
+import { useWorkspaceScanSync } from "@/hooks/use-workspace-scan-sync";
 import { toErrorMessage } from "@/lib/errors";
-import { FrameCache } from "@/lib/frameCache";
+import { FrameCache } from "@/lib/frame-cache";
 import {
   useAutoExcludePreviewQuery,
   useSaveBboxMutation,

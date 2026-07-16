@@ -45,11 +45,11 @@ export {
   mergeExcludedCells,
   setExcludedCellsForPosition,
   toggleExcludedCells,
-} from "./excludedCellIds";
+} from "./excluded-cell-ids";
 export {
   coerceSelection,
   createSelection,
   getFrameContrastDomain,
   makeFrameKey,
   makeSourceKey,
-} from "./sourceUtils";
+} from "./source-utils";

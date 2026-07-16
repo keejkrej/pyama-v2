@@ -12,7 +12,7 @@ import {
   AppSlider,
   NumberInput,
   type SelectOption,
-} from "@/components/Controls";
+} from "@/components/controls";
 import {
   SidebarField,
   SidebarSection,

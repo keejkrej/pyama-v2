@@ -4,7 +4,7 @@ import type { HostApi, Source } from "@/lib/contracts";
 import { useAlignStateQuery, useScanSourceQuery } from "@/lib/query";
 
 import { appStore } from "@/lib/store";
-import { useSyncAlignStateQuery, useSyncScanSourceQuery } from "./syncQueryToStore";
+import { useSyncAlignStateQuery, useSyncScanSourceQuery } from "./sync-query-to-store";
 
 /** Owns scan + saved-state TanStack queries and bridges them into {@link appStore}. */
 export function useWorkspaceScanSync(
