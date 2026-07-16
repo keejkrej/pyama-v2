@@ -1,17 +1,10 @@
-export type GridShape = "square" | "hex";
+import type {
+  GridCellCoord,
+  GridShape,
+  GridState,
+} from "@/lib/contracts";
 
-export interface GridState {
-  enabled: boolean;
-  shape: GridShape;
-  tx: number;
-  ty: number;
-  rotation: number;
-  spacingA: number;
-  spacingB: number;
-  cellWidth: number;
-  cellHeight: number;
-  opacity: number;
-}
+export type { GridCellCoord, GridShape, GridState };
 
 export interface GridFrameBounds {
   width: number;
@@ -31,11 +24,6 @@ export interface GridWheelViewport {
   displayHeight: number;
   modelWidth: number;
   modelHeight: number;
-}
-
-export interface GridCellCoord {
-  i: number;
-  j: number;
 }
 
 export type ExcludedCellsByPosition = Record<number, GridCellCoord[]>;

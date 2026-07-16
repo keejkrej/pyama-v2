@@ -9,7 +9,6 @@ import type {
 } from "@/lib/contracts";
 import { clamp, getFrameContrastDomain } from "@/lib/core";
 import type { ContrastMode } from "@/lib/store";
-import { toErrorMessage as toSharedErrorMessage } from "@/lib/errors";
 
 function toError(error: unknown, fallback: string): Error {
   if (error instanceof Error) {
@@ -42,10 +41,6 @@ function toError(error: unknown, fallback: string): Error {
 function contrastWindowForFrame(frame: FrameResult | null): ContrastWindow {
   if (!frame) return { min: 0, max: 255 };
   return frame.contrastDomain ?? getFrameContrastDomain(frame);
-}
-
-export function toErrorMessage(error: unknown): string {
-  return toSharedErrorMessage(error);
 }
 
 export function loadFrameEffect(

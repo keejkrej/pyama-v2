@@ -6,8 +6,8 @@ import { NavigationControls } from "../src/components/NavigationControls";
 import {
   persistStoredString,
   readStoredStringWithFallback,
-  workspaceStore,
 } from "../src/lib/state";
+import { appStore } from "../src/lib/store";
 import { showErrorToast } from "../src/lib/toast";
 
 describe("spa surface", () => {
@@ -16,7 +16,7 @@ describe("spa surface", () => {
     expect(typeof CanvasSurface).toBe("function");
     expect(typeof NavigationControls).toBe("function");
     expect(typeof showErrorToast).toBe("function");
-    expect(typeof workspaceStore.getState).toBe("function");
+    expect(typeof appStore.getState).toBe("function");
   });
 });
 

@@ -1,7 +1,6 @@
 import { clamp } from "./utils";
 
 import type {
-  ContrastWindow,
   FrameResult,
   PixelArray,
   PixelType,
@@ -53,18 +52,6 @@ export function percentile(values: PixelArray, q: number): number {
   const clampedQ = clamp(q, 0, 1);
   const index = Math.floor(clampedQ * (sorted.length - 1));
   return sorted[index] ?? 0;
-}
-
-export function autoContrast(values: PixelArray): ContrastWindow {
-  if (values.length === 0) {
-    return { min: 0, max: 1 };
-  }
-  const min = percentile(values, 0.001);
-  const max = percentile(values, 0.999);
-  return {
-    min,
-    max: Math.max(min + 1, max),
-  };
 }
 
 function inferPixelType(values: PixelArray): PixelType | null {

@@ -47,7 +47,6 @@ export {
   toggleExcludedCells,
 } from "./excludedCellIds";
 export {
-  autoContrast,
   coerceSelection,
   createSelection,
   getFrameContrastDomain,

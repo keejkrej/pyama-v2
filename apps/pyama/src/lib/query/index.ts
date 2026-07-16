@@ -15,7 +15,6 @@ export {
   savedBboxPositionsQueryOptions,
   scanSourceQueryOptions,
 } from "./queryOptions";
-export { fetchAutoExcludePreview, fetchSavedBboxPositions } from "./imperativeFetch";
 export {
   useSavedStateQuery,
   useAutoExcludePreviewQuery,

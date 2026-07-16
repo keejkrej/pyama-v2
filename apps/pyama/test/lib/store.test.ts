@@ -4,6 +4,7 @@ import {
   applySavedState,
   IDLE_SAVE_STATE,
   resetExcludedCells,
+  setWorkspacePath,
   appStore,
 } from "../../src/lib/store";
 
@@ -128,5 +129,18 @@ describe("app store exclusion actions", () => {
       opacity: 0.45,
     });
     expect(appStore.getState().excludedCellsByPosition).toEqual({});
+  });
+});
+
+describe("app store workspace path", () => {
+  test("setWorkspacePath updates the single session store", () => {
+    setWorkspacePath("/tmp/ws-a");
+    expect(appStore.getState().workspacePath).toBe("/tmp/ws-a");
+
+    setWorkspacePath("/tmp/ws-b");
+    expect(appStore.getState().workspacePath).toBe("/tmp/ws-b");
+
+    setWorkspacePath(null);
+    expect(appStore.getState().workspacePath).toBeNull();
   });
 });

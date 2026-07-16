@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import { createStore } from "zustand/vanilla";
 
 import type {
@@ -24,7 +23,6 @@ import {
   persistStoredString,
   readStoredStringWithFallback,
   resolveSessionStorage,
-  setWorkspacePath as setSharedWorkspacePath,
   type SessionStorageLike,
 } from "@/lib/state";
 
@@ -69,10 +67,6 @@ export interface ViewStoreState {
 }
 
 export const IDLE_SAVE_STATE: SaveState = { type: "idle", message: null };
-
-function runSync<A>(effect: Effect.Effect<A, never, never>): A {
-  return Effect.runSync(effect);
-}
 
 function resolveStorage(): StorageLike | null {
   return resolveSessionStorage();
@@ -183,44 +177,36 @@ function readStoredExcludedCells(
   }
 }
 
-function persistWorkspacePathEffect(storage: StorageLike | null, workspacePath: string | null) {
-  return Effect.sync(() => {
-    persistStoredString(storage, LAST_WORKSPACE_KEY, workspacePath, LAST_ROOT_KEY);
-  }).pipe(Effect.withSpan("app-store.persist-workspace-path"));
+function persistWorkspacePath(storage: StorageLike | null, workspacePath: string | null) {
+  persistStoredString(storage, LAST_WORKSPACE_KEY, workspacePath, LAST_ROOT_KEY);
 }
 
-function persistSourceEffect(storage: StorageLike | null, source: Source | null) {
-  return Effect.sync(() => {
-    if (!storage) return;
-    if (source) {
-      storage.setItem(LAST_IMAGE_SOURCE_KEY, JSON.stringify(source));
-    } else {
-      storage.removeItem(LAST_IMAGE_SOURCE_KEY);
-    }
-    storage.removeItem(LAST_SOURCE_KEY);
-  }).pipe(Effect.withSpan("app-store.persist-source"));
+function persistSource(storage: StorageLike | null, source: Source | null) {
+  if (!storage) return;
+  if (source) {
+    storage.setItem(LAST_IMAGE_SOURCE_KEY, JSON.stringify(source));
+  } else {
+    storage.removeItem(LAST_IMAGE_SOURCE_KEY);
+  }
+  storage.removeItem(LAST_SOURCE_KEY);
 }
 
-function persistGridEffect(storage: StorageLike | null, grid: GridState) {
-  return Effect.sync(() => {
-    if (!storage) return;
-    storage.setItem(LAST_GRID_KEY, JSON.stringify(grid));
-  }).pipe(Effect.withSpan("app-store.persist-grid"));
+function persistGrid(storage: StorageLike | null, grid: GridState) {
+  if (!storage) return;
+  storage.setItem(LAST_GRID_KEY, JSON.stringify(grid));
 }
 
-function persistExcludedCellsEffect(
+function persistExcludedCells(
   storage: StorageLike | null,
   source: Source | null,
   excludedCellsByPosition: ExcludedCellsByPosition,
 ) {
-  return Effect.sync(() => {
-    if (!storage || !source) return;
-    if (Object.keys(excludedCellsByPosition).length === 0) {
-      storage.removeItem(excludedBboxStorageKey(source));
-      return;
-    }
-    storage.setItem(excludedBboxStorageKey(source), JSON.stringify(excludedCellsByPosition));
-  }).pipe(Effect.withSpan("app-store.persist-excluded-cell-ids"));
+  if (!storage || !source) return;
+  if (Object.keys(excludedCellsByPosition).length === 0) {
+    storage.removeItem(excludedBboxStorageKey(source));
+    return;
+  }
+  storage.setItem(excludedBboxStorageKey(source), JSON.stringify(excludedCellsByPosition));
 }
 
 function resolveNextValue<T>(current: T, next: StateUpdater<T>): T {
@@ -262,46 +248,41 @@ function resetAppState(
 }
 
 function createInitialState(): ViewStoreState {
-  return runSync(
-    Effect.gen(function* () {
-      const storage = yield* Effect.sync(resolveStorage);
-      const workspacePath = yield* Effect.sync(() => readStoredWorkspacePath(storage));
-      const source = yield* Effect.sync(() => readStoredSource(storage, workspacePath));
+  const storage = resolveStorage();
+  const workspacePath = readStoredWorkspacePath(storage);
+  const source = readStoredSource(storage, workspacePath);
 
-      return {
-        workspacePath,
-        source,
-        scan: null,
-        selection: null,
-        grid: readStoredGrid(storage),
-        frame: null,
-        loading: false,
-        error: null,
-        contrastMin: DEFAULT_CONTRAST_MIN,
-        contrastMax: DEFAULT_CONTRAST_MAX,
-        contrastMode: "manual",
-        contrastReloadToken: 0,
-        timeSliderIndex: 0,
-        selectionMode: false,
-        excludedCellsByPosition: readStoredExcludedCells(storage, source),
-        saveState: IDLE_SAVE_STATE,
-        saving: false,
-      } satisfies ViewStoreState;
-    }).pipe(Effect.withSpan("app-store.create-initial-state")),
-  );
+  return {
+    workspacePath,
+    source,
+    scan: null,
+    selection: null,
+    grid: readStoredGrid(storage),
+    frame: null,
+    loading: false,
+    error: null,
+    contrastMin: DEFAULT_CONTRAST_MIN,
+    contrastMax: DEFAULT_CONTRAST_MAX,
+    contrastMode: "manual",
+    contrastReloadToken: 0,
+    timeSliderIndex: 0,
+    selectionMode: false,
+    excludedCellsByPosition: readStoredExcludedCells(storage, source),
+    saveState: IDLE_SAVE_STATE,
+    saving: false,
+  };
 }
 
 export const appStore = createStore<ViewStoreState>(() => createInitialState());
 
 export function setWorkspacePath(workspacePath: string | null) {
-  setSharedWorkspacePath(workspacePath);
-  runSync(persistWorkspacePathEffect(resolveStorage(), workspacePath));
+  persistWorkspacePath(resolveStorage(), workspacePath);
   appStore.setState((state) => ({ ...state, workspacePath }));
 }
 
 export function setSource(source: Source | null) {
   const storage = resolveStorage();
-  runSync(persistSourceEffect(storage, source));
+  persistSource(storage, source);
   appStore.setState((state) =>
     resetAppState(state, {
       source,
@@ -317,7 +298,7 @@ export function patchViewState(patch: Partial<ViewStoreState>) {
 export function setGrid(next: StateUpdater<GridState>) {
   appStore.setState((state) => {
     const grid = resolveNextValue(state.grid, next);
-    runSync(persistGridEffect(resolveStorage(), grid));
+    persistGrid(resolveStorage(), grid);
     return { ...state, grid };
   });
 }
@@ -329,8 +310,8 @@ export function resetGrid() {
       enabled: state.grid.enabled,
     };
     const excludedCellsByPosition = clearExcludedCellsMap();
-    runSync(persistGridEffect(resolveStorage(), grid));
-    runSync(persistExcludedCellsEffect(resolveStorage(), state.source, excludedCellsByPosition));
+    persistGrid(resolveStorage(), grid);
+    persistExcludedCells(resolveStorage(), state.source, excludedCellsByPosition);
     return {
       ...state,
       grid,
@@ -343,7 +324,7 @@ export function resetGrid() {
 export function toggleGridEnabled() {
   appStore.setState((state) => {
     const grid = { ...state.grid, enabled: !state.grid.enabled };
-    runSync(persistGridEffect(resolveStorage(), grid));
+    persistGrid(resolveStorage(), grid);
     return { ...state, grid };
   });
 }
@@ -408,7 +389,7 @@ export function toggleExcludedCells(position: number, cells: Iterable<GridCellCo
       nextCells,
     );
 
-    runSync(persistExcludedCellsEffect(resolveStorage(), state.source, excludedCellsByPosition));
+    persistExcludedCells(resolveStorage(), state.source, excludedCellsByPosition);
 
     return {
       ...state,
@@ -437,7 +418,7 @@ export function excludeCells(position: number, cells: Iterable<GridCellCoord>) {
       nextCells,
     );
 
-    runSync(persistExcludedCellsEffect(resolveStorage(), state.source, excludedCellsByPosition));
+    persistExcludedCells(resolveStorage(), state.source, excludedCellsByPosition);
 
     return {
       ...state,
@@ -459,7 +440,7 @@ export function resetExcludedCells(position: number) {
       [],
     );
 
-    runSync(persistExcludedCellsEffect(resolveStorage(), state.source, excludedCellsByPosition));
+    persistExcludedCells(resolveStorage(), state.source, excludedCellsByPosition);
 
     return {
       ...state,
@@ -480,9 +461,9 @@ export function applySavedState(position: number, savedState: SavedState | null)
     const storage = resolveStorage();
 
     if (savedState) {
-      runSync(persistGridEffect(storage, grid));
+      persistGrid(storage, grid);
     }
-    runSync(persistExcludedCellsEffect(storage, state.source, excludedCellsByPosition));
+    persistExcludedCells(storage, state.source, excludedCellsByPosition);
 
     return {
       ...state,

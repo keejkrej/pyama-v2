@@ -11,7 +11,8 @@ export interface FrameResultCache {
 }
 import { makeFrameKey } from "@/lib/core";
 
-import { loadFrameEffect, toErrorMessage } from "@/lib/effects";
+import { loadFrameEffect } from "@/lib/effects";
+import { toErrorMessage } from "@/lib/errors";
 import type { ContrastMode } from "@/lib/store";
 import { patchViewState } from "@/lib/store";
 

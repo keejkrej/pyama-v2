@@ -7,13 +7,12 @@ import { AnchoredToastProvider, ToastProvider } from "@/components/ui";
 import type { HostFilePickerMode } from "@/lib/contracts";
 import { makeSourceKey } from "@/lib/core";
 import { createHostPorts } from "@/lib/host";
-import { setWorkspacePath, workspaceStore } from "@/lib/state";
-import { setSource, appStore } from "@/lib/store";
+import { appStore, setSource, setWorkspacePath } from "@/lib/store";
 
 const { dataPort, hostPort } = createHostPorts();
 
 export default function App() {
-  const workspacePath = useStore(workspaceStore, (state) => state.workspacePath);
+  const workspacePath = useStore(appStore, (state) => state.workspacePath);
   const source = useStore(appStore, (state) => state.source);
   const pickerModeRef = useRef<HostFilePickerMode | null>(null);
   const [filePicker, setFilePicker] = useState<{
