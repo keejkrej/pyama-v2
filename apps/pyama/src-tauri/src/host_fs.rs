@@ -1,4 +1,4 @@
-//! Host filesystem helpers for WebSocket-backed directory browsing (no native pickers).
+//! Host filesystem helpers for in-app directory browsing (no native pickers).
 
 use serde::Serialize;
 use std::fs;
@@ -113,8 +113,7 @@ pub fn list_directory(path: Option<String>) -> Result<HostListDirectoryResult, S
     }
 }
 
-/// Home directory of the user account running this process (the WebSocket / host server),
-/// not the webview or any remote client.
+/// Home directory of the user account running this process.
 pub fn user_home_directory() -> Result<String, String> {
     #[cfg(windows)]
     {

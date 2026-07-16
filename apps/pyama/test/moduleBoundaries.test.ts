@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vite-plus/test";
 
 import App from "../src/App";
 import CanvasSurface from "../src/components/CanvasSurface";

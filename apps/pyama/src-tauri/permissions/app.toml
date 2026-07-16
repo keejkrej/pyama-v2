@@ -1,0 +1,44 @@
+[[permission]]
+identifier = "allow-scan-source"
+description = "Enables the scan_source command."
+commands.allow = ["scan_source"]
+
+[[permission]]
+identifier = "allow-load-frame"
+description = "Enables the load_frame command."
+commands.allow = ["load_frame"]
+
+[[permission]]
+identifier = "allow-list-saved-bbox-positions"
+description = "Enables the list_saved_bbox_positions command."
+commands.allow = ["list_saved_bbox_positions"]
+
+[[permission]]
+identifier = "allow-load-align-state"
+description = "Enables the load_align_state command."
+commands.allow = ["load_align_state"]
+
+[[permission]]
+identifier = "allow-auto-exclude-preview"
+description = "Enables the auto_exclude_preview command."
+commands.allow = ["auto_exclude_preview"]
+
+[[permission]]
+identifier = "allow-save-bbox"
+description = "Enables the save_bbox command."
+commands.allow = ["save_bbox"]
+
+[[permission]]
+identifier = "allow-list-directory"
+description = "Enables the list_directory command."
+commands.allow = ["list_directory"]
+
+[[permission]]
+identifier = "allow-user-home-directory"
+description = "Enables the user_home_directory command."
+commands.allow = ["user_home_directory"]
+
+[[permission]]
+identifier = "allow-read-text-file"
+description = "Enables the read_text_file command."
+commands.allow = ["read_text_file"]

@@ -8,7 +8,6 @@ import { FolderOpen, HardDrive, X } from "lucide-react";
 import type { Source } from "@/lib/contracts";
 import { Button } from "@/components/ui";
 import { ContextSummary } from "@/components/ContextSummary";
-import { ServerConnectionButton } from "@/components/ServerConnectionButton";
 
 interface NavbarProps {
   workspacePath: string | null;
@@ -68,45 +67,35 @@ export default function Navbar({
   return (
     <>
       <header className="border-b border-border/80 bg-background px-6 py-3">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-          <div className="min-w-0 justify-self-start" />
-
-          <div className="min-w-0 justify-self-center">
-            <div className="flex max-w-[56rem] flex-wrap items-center justify-center gap-3">
-              <ContextSummary
-                label="Workspace"
-                value={workspacePath}
-                icon={<FolderOpen className="size-4" />}
-                onClick={() => void onPickWorkspace()}
-              />
-              <ContextSummary
-                label="Source"
-                value={source?.path ?? null}
-                icon={<HardDrive className="size-4" />}
-                badge={sourceBadge}
-                disabled={!workspacePath}
-                onClick={() => setOpenDataModalOpen(true)}
-                action={
-                  source ? (
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      className="rounded-full"
-                      aria-label="Clear source"
-                      onClick={handleSourceClear}
-                    >
-                      <X className="size-3.5" />
-                    </Button>
-                  ) : null
-                }
-              />
-            </div>
-          </div>
-
-          <div className="min-w-0 justify-self-end">
-            <div className="flex items-center justify-end gap-2">
-              <ServerConnectionButton />
-            </div>
+        <div className="flex items-center justify-center">
+          <div className="flex max-w-[56rem] flex-wrap items-center justify-center gap-3">
+            <ContextSummary
+              label="Workspace"
+              value={workspacePath}
+              icon={<FolderOpen className="size-4" />}
+              onClick={() => void onPickWorkspace()}
+            />
+            <ContextSummary
+              label="Source"
+              value={source?.path ?? null}
+              icon={<HardDrive className="size-4" />}
+              badge={sourceBadge}
+              disabled={!workspacePath}
+              onClick={() => setOpenDataModalOpen(true)}
+              action={
+                source ? (
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    className="rounded-full"
+                    aria-label="Clear source"
+                    onClick={handleSourceClear}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                ) : null
+              }
+            />
           </div>
         </div>
       </header>

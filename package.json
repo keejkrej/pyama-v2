@@ -6,19 +6,27 @@
     "apps/pyama"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "build:pyama": "turbo run build --filter=pyama",
-    "dev:pyama": "turbo run dev --filter=pyama",
-    "dev:pyama-server": "turbo run dev:server --filter=pyama",
-    "dev:pyama-web": "turbo run dev:web --filter=pyama",
-    "release:pyama": "turbo run release --filter=pyama",
-    "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
-    "check:tauri": "turbo run check:tauri",
+    "build": "vp run -r build",
+    "build:pyama": "vp run -F pyama build",
+    "dev:pyama": "vp run -F pyama dev",
+    "release:pyama": "vp run -F pyama release",
+    "test": "vp run -r test",
+    "typecheck": "vp run -r typecheck",
+    "check:tauri": "vp run -F pyama check:tauri",
     "check:rust": "cargo check --workspace",
-    "check": "bun run typecheck && bun run check:rust"
+    "check": "vp run -r typecheck && cargo check --workspace"
+  },
+  "catalog": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
+    "vitest": "4.1.10",
+    "vite-plus": "0.2.4"
+  },
+  "overrides": {
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "devDependencies": {
-    "turbo": "^2.9.6"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }
