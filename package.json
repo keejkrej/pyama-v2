@@ -1,18 +1,17 @@
 {
-  "name": "lisca-monorepo",
+  "name": "pyama-v2",
   "private": true,
   "packageManager": "bun@1.2.22",
   "workspaces": [
-    "packages/lisca/typescript",
-    "apps/viewer"
+    "apps/pyama"
   ],
   "scripts": {
     "build": "turbo run build",
-    "build:viewer": "turbo run build --filter=viewer",
-    "dev:viewer": "turbo run dev --filter=viewer",
-    "dev:viewer-server": "turbo run dev:server --filter=viewer",
-    "dev:viewer-web": "turbo run dev:web --filter=viewer",
-    "release:viewer": "turbo run release --filter=viewer",
+    "build:pyama": "turbo run build --filter=pyama",
+    "dev:pyama": "turbo run dev --filter=pyama",
+    "dev:pyama-server": "turbo run dev:server --filter=pyama",
+    "dev:pyama-web": "turbo run dev:web --filter=pyama",
+    "release:pyama": "turbo run release --filter=pyama",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "check:tauri": "turbo run check:tauri",

@@ -1,0 +1,17 @@
+[package]
+name = "pyama"
+version = "0.2.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+czi-rs = { package = "czisdk-rs", git = "https://github.com/keejkrej/czisdk-rs" }
+nd2-rs = { package = "nd2sdk-rs", git = "https://github.com/keejkrej/nd2sdk-rs" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tungstenite = "0.24"

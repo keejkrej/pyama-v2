@@ -34,14 +34,28 @@ if [ ! -f "$UV_BIN" ]; then
     chmod +x "$UV_BIN"
 fi
 
-echo "Installing package..."
-"$UV_BIN" sync --directory "$ROOT"
+echo "Installing Python 3.12..."
+"$UV_BIN" python install 3.12
 
-for helper in transfection-analyze.sh transfection-slide.sh; do
-    if [[ -f "$SCRIPT_DIR/$helper" ]]; then chmod +x "$SCRIPT_DIR/$helper"; fi
-done
+VENV_DIR="$ROOT/.venv"
+VENV_PYTHON=""
+if [[ -x "$VENV_DIR/bin/python" ]]; then
+  VENV_PYTHON="$VENV_DIR/bin/python"
+elif [[ -x "$VENV_DIR/Scripts/python.exe" ]]; then
+  VENV_PYTHON="$VENV_DIR/Scripts/python.exe"
+fi
+if [[ -n "$VENV_PYTHON" ]]; then
+  current="$("$VENV_PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' || true)"
+  if [[ "$current" != "3.12" ]]; then
+    echo "Recreating venv (need Python 3.12)..."
+    rm -rf "$VENV_DIR"
+  fi
+fi
+
+echo "Installing package..."
+"$UV_BIN" sync --python 3.12 --extra notebook --directory "$ROOT"
 
 echo "Done."
 echo ""
-echo "Run transfection with:"
-echo "  $UV_BIN run --directory \"$ROOT\" transfection ..."
+echo "Start Jupyter on notebooks/ with:"
+echo "  bash scripts/notebook.sh"
