@@ -29,16 +29,16 @@ function cellKey(cell: { i: number; j: number }): string {
 describe("grid utils", () => {
   test("normalizes grid inputs", () => {
     const grid = normalizeGridState({
-      spacingA: -1,
-      spacingB: 10,
-      cellWidth: 12,
-      cellHeight: 20,
+      spacingX: -1,
+      spacingY: 10,
+      patternW: 12,
+      patternH: 20,
       opacity: 10,
       enabled: true,
     });
     expect(grid.enabled).toBe(true);
-    expect(grid.spacingA).toBe(12);
-    expect(grid.spacingB).toBe(12);
+    expect(grid.spacingX).toBe(12);
+    expect(grid.spacingY).toBe(12);
     expect(grid.opacity).toBe(1);
   });
 
@@ -65,10 +65,10 @@ describe("grid utils", () => {
       },
       normalizeGridState({
         enabled: true,
-        spacingA: 24,
-        spacingB: 24,
-        cellWidth: 16,
-        cellHeight: 16,
+        spacingX: 24,
+        spacingY: 24,
+        patternW: 16,
+        patternH: 16,
       }),
     );
 
@@ -82,7 +82,7 @@ describe("grid utils", () => {
   test("default grid stays stable", () => {
     const grid = createDefaultGrid();
     expect(grid.shape).toBe("square");
-    expect(grid.cellWidth).toBeGreaterThan(0);
+    expect(grid.patternW).toBeGreaterThan(0);
   });
 
   test("classifies mouse wheel as size scaling", () => {
@@ -235,9 +235,9 @@ describe("grid utils", () => {
       },
     );
 
-    expect(next.spacingA).toBeGreaterThan(grid.spacingA);
-    expect(next.spacingB).toBeGreaterThan(grid.spacingB);
-    expect(next.cellWidth).toBe(grid.cellWidth);
+    expect(next.spacingX).toBeGreaterThan(grid.spacingX);
+    expect(next.spacingY).toBeGreaterThan(grid.spacingY);
+    expect(next.patternW).toBe(grid.patternW);
   });
 
   test("applies right drag as rotation", () => {
@@ -304,10 +304,10 @@ describe("grid utils", () => {
       },
     );
 
-    expect(next.spacingA).toBeGreaterThan(grid.spacingA);
-    expect(next.spacingB).toBeGreaterThan(grid.spacingB);
-    expect(next.cellWidth).toBeGreaterThan(grid.cellWidth);
-    expect(next.cellHeight).toBeGreaterThan(grid.cellHeight);
+    expect(next.spacingX).toBeGreaterThan(grid.spacingX);
+    expect(next.spacingY).toBeGreaterThan(grid.spacingY);
+    expect(next.patternW).toBeGreaterThan(grid.patternW);
+    expect(next.patternH).toBeGreaterThan(grid.patternH);
     expect(next.rotation).toBe(grid.rotation);
   });
 
@@ -409,10 +409,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: 0,
         ty: 0,
-        spacingA: 50,
-        spacingB: 50,
-        cellWidth: 50,
-        cellHeight: 50,
+        spacingX: 50,
+        spacingY: 50,
+        patternW: 50,
+        patternH: 50,
       }),
     );
 
@@ -429,10 +429,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: 1000,
         ty: 0,
-        spacingA: 50,
-        spacingB: 50,
-        cellWidth: 40,
-        cellHeight: 40,
+        spacingX: 50,
+        spacingY: 50,
+        patternW: 40,
+        patternH: 40,
       }),
     );
 
@@ -450,10 +450,10 @@ describe("grid utils", () => {
     };
     const grid = normalizeGridState({
       enabled: true,
-      spacingA: 50,
-      spacingB: 50,
-      cellWidth: 50,
-      cellHeight: 50,
+      spacingX: 50,
+      spacingY: 50,
+      patternW: 50,
+      patternH: 50,
     });
 
     const cell = findGridCellAtPoint(frame, grid, 1, 30);
@@ -468,10 +468,10 @@ describe("grid utils", () => {
     };
     const grid = normalizeGridState({
       enabled: true,
-      spacingA: 50,
-      spacingB: 50,
-      cellWidth: 50,
-      cellHeight: 50,
+      spacingX: 50,
+      spacingY: 50,
+      patternW: 50,
+      patternH: 50,
     });
     const hitCells: { i: number; j: number }[] = [];
 
@@ -493,10 +493,10 @@ describe("grid utils", () => {
       },
       normalizeGridState({
         enabled: true,
-        spacingA: 50,
-        spacingB: 50,
-        cellWidth: 50,
-        cellHeight: 50,
+        spacingX: 50,
+        spacingY: 50,
+        patternW: 50,
+        patternH: 50,
       }),
       [{ i: 0, j: 0 }],
     );
@@ -515,10 +515,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: -10,
         ty: -10,
-        spacingA: 50,
-        spacingB: 50,
-        cellWidth: 50,
-        cellHeight: 50,
+        spacingX: 50,
+        spacingY: 50,
+        patternW: 50,
+        patternH: 50,
       }),
     );
 
@@ -537,10 +537,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: -10,
         ty: -10,
-        spacingA: 100,
-        spacingB: 100,
-        cellWidth: 50,
-        cellHeight: 50,
+        spacingX: 100,
+        spacingY: 100,
+        patternW: 50,
+        patternH: 50,
       }),
     );
 
@@ -559,10 +559,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: -20,
         ty: -20,
-        spacingA: 100,
-        spacingB: 100,
-        cellWidth: 50,
-        cellHeight: 50,
+        spacingX: 100,
+        spacingY: 100,
+        patternW: 50,
+        patternH: 50,
       }),
     );
 
@@ -579,10 +579,10 @@ describe("grid utils", () => {
       },
       normalizeGridState({
         enabled: true,
-        spacingA: 50,
-        spacingB: 50,
-        cellWidth: 50,
-        cellHeight: 50,
+        spacingX: 50,
+        spacingY: 50,
+        patternW: 50,
+        patternH: 50,
       }),
       [{ i: 0, j: 0 }],
     );
@@ -603,10 +603,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: 0.33,
         ty: 0.67,
-        spacingA: 120,
-        spacingB: 120,
-        cellWidth: 100.6,
-        cellHeight: 80.6,
+        spacingX: 120,
+        spacingY: 120,
+        patternW: 100.6,
+        patternH: 80.6,
       }),
     );
 
@@ -628,10 +628,10 @@ describe("grid utils", () => {
         enabled: true,
         tx: 0.33,
         ty: 0.67,
-        spacingA: 120,
-        spacingB: 120,
-        cellWidth: 100.6,
-        cellHeight: 80.6,
+        spacingX: 120,
+        spacingY: 120,
+        patternW: 100.6,
+        patternH: 80.6,
       }),
     );
 

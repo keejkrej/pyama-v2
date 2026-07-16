@@ -42,10 +42,14 @@ pub struct GridState {
     pub tx: f64,
     pub ty: f64,
     pub rotation: f64,
-    pub spacing_a: f64,
-    pub spacing_b: f64,
-    pub cell_width: f64,
-    pub cell_height: f64,
+    #[serde(alias = "spacingA")]
+    pub spacing_x: f64,
+    #[serde(alias = "spacingB")]
+    pub spacing_y: f64,
+    #[serde(alias = "cellWidth")]
+    pub pattern_w: f64,
+    #[serde(alias = "cellHeight")]
+    pub pattern_h: f64,
     pub opacity: f64,
 }
 

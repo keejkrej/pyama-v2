@@ -74,7 +74,7 @@ function drawGridOverlay(
   const drawY = (viewportHeight - drawHeight) / 2;
   const originX = drawX + (frame.width / 2 + grid.tx) * scale;
   const originY = drawY + (frame.height / 2 + grid.ty) * scale;
-  const basis = gridBasis(grid.shape, grid.rotation, grid.spacingA, grid.spacingB);
+  const basis = gridBasis(grid.shape, grid.rotation, grid.spacingX, grid.spacingY);
   const scaledA = { x: basis.a.x * scale, y: basis.a.y * scale };
   const scaledB = { x: basis.b.x * scale, y: basis.b.y * scale };
 

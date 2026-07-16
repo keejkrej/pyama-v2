@@ -16,7 +16,6 @@ import {
 import {
   SidebarField,
   SidebarSection,
-  SidebarSegmentedToggle,
 } from "@/components/sidebar";
 import { Button } from "@/components/ui";
 import { resetGrid, setGrid } from "@/lib/store";
@@ -28,7 +27,7 @@ export interface GridSidebarProps {
 
 export function GridSidebar({ grid, disabled }: GridSidebarProps) {
   const gridDegrees = radiansToDegrees(grid.rotation);
-  const minGridSpacing = Math.min(grid.cellWidth, grid.cellHeight);
+  const minGridSpacing = Math.min(grid.patternW, grid.patternH);
   const shapeOptions = useMemo<SelectOption<GridShape>[]>(
     () => [
       { label: "Square", value: "square" },
@@ -41,31 +40,32 @@ export function GridSidebar({ grid, disabled }: GridSidebarProps) {
     <SidebarSection
       title="Grid"
       action={
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 px-2.5 text-xs"
-          disabled={disabled}
-          onClick={resetGrid}
-        >
-          Reset
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+            disabled={disabled}
+            aria-pressed={!grid.enabled}
+            data-pressed={!grid.enabled ? "" : undefined}
+            onClick={() =>
+              setGrid((current) => ({ ...current, enabled: !current.enabled }))
+            }
+          >
+            Hide
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+            disabled={disabled}
+            onClick={resetGrid}
+          >
+            Reset
+          </Button>
+        </div>
       }
     >
-      <SidebarField label="Overlay">
-        <SidebarSegmentedToggle
-          value={grid.enabled ? "visible" : "hidden"}
-          options={[
-            { label: "Hidden", value: "hidden" },
-            { label: "Visible", value: "visible" },
-          ]}
-          compact
-          disabled={disabled}
-          onChange={(value) =>
-            setGrid((current) => ({ ...current, enabled: value === "visible" }))
-          }
-        />
-      </SidebarField>
       <SidebarField label="Grid Shape">
         <AppSelect
           value={grid.shape}
@@ -92,28 +92,28 @@ export function GridSidebar({ grid, disabled }: GridSidebarProps) {
       </SidebarField>
 
       <div className="grid grid-cols-2 gap-2">
-        <SidebarField label="Pitch A">
+        <SidebarField label="Spacing X">
           <NumberInput
-            value={grid.spacingA}
+            value={grid.spacingX}
             min={minGridSpacing}
             disabled={disabled}
             onChange={(value) =>
               setGrid((current) => ({
                 ...current,
-                spacingA: Number.isFinite(value) && value > 0 ? value : 1,
+                spacingX: Number.isFinite(value) && value > 0 ? value : 1,
               }))
             }
           />
         </SidebarField>
-        <SidebarField label="Pitch B">
+        <SidebarField label="Spacing Y">
           <NumberInput
-            value={grid.spacingB}
+            value={grid.spacingY}
             min={minGridSpacing}
             disabled={disabled}
             onChange={(value) =>
               setGrid((current) => ({
                 ...current,
-                spacingB: Number.isFinite(value) && value > 0 ? value : 1,
+                spacingY: Number.isFinite(value) && value > 0 ? value : 1,
               }))
             }
           />
@@ -121,26 +121,26 @@ export function GridSidebar({ grid, disabled }: GridSidebarProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <SidebarField label="Cell Width">
+        <SidebarField label="Pattern W">
           <NumberInput
-            value={grid.cellWidth}
+            value={grid.patternW}
             disabled={disabled}
             onChange={(value) =>
               setGrid((current) => ({
                 ...current,
-                cellWidth: Number.isFinite(value) && value > 0 ? value : 1,
+                patternW: Number.isFinite(value) && value > 0 ? value : 1,
               }))
             }
           />
         </SidebarField>
-        <SidebarField label="Cell Height">
+        <SidebarField label="Pattern H">
           <NumberInput
-            value={grid.cellHeight}
+            value={grid.patternH}
             disabled={disabled}
             onChange={(value) =>
               setGrid((current) => ({
                 ...current,
-                cellHeight: Number.isFinite(value) && value > 0 ? value : 1,
+                patternH: Number.isFinite(value) && value > 0 ? value : 1,
               }))
             }
           />
@@ -170,7 +170,7 @@ export function GridSidebar({ grid, disabled }: GridSidebarProps) {
         </SidebarField>
       </div>
 
-      <SidebarField label="Overlay" hint={grid.opacity.toFixed(2)}>
+      <SidebarField label="Opacity" hint={grid.opacity.toFixed(2)}>
         <AppSlider
           value={grid.opacity}
           min={0}

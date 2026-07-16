@@ -8,7 +8,7 @@
   "scripts": {
     "build": "vp run -r build",
     "build:pyama": "vp run -F pyama build",
-    "dev:pyama": "vp run -F pyama dev",
+    "dev:pyama": "bun run --cwd apps/pyama dev",
     "release:pyama": "vp run -F pyama release",
     "test": "vp run -r test",
     "typecheck": "vp run -r typecheck",

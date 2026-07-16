@@ -50,10 +50,10 @@ export interface GridState {
   tx: number;
   ty: number;
   rotation: number;
-  spacingA: number;
-  spacingB: number;
-  cellWidth: number;
-  cellHeight: number;
+  spacingX: number;
+  spacingY: number;
+  patternW: number;
+  patternH: number;
   opacity: number;
 }
 
