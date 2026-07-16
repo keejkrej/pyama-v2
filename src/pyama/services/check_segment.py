@@ -10,7 +10,7 @@ from typing import Callable
 import imageio.v2 as imageio
 import numpy as np
 
-from transfection.core import (
+from pyama.core import (
     RoiCrop,
     SlideMapping,
     default_mask_path,
@@ -22,7 +22,7 @@ from transfection.core import (
     validate_channel_index,
     validate_slide_mapping,
 )
-from transfection.services.segment import format_skipped_positions_message
+from pyama.services.segment import format_skipped_positions_message
 
 
 REVIEW_FRAME_SIZE = 512

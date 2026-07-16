@@ -24,9 +24,7 @@ interface ViewerNavbarProps {
   onOpenNd2: () => void | Promise<void>;
   onOpenCzi: () => void | Promise<void>;
   onClearSource: () => void;
-  onBatchCrop?: () => void;
   onLoadQ20Preset?: () => void;
-  canBatchCrop?: boolean;
   canLoadQ20Preset?: boolean;
 }
 
@@ -42,9 +40,7 @@ export default function ViewerNavbar({
   onOpenNd2,
   onOpenCzi,
   onClearSource,
-  onBatchCrop,
   onLoadQ20Preset,
-  canBatchCrop = false,
   canLoadQ20Preset = false,
 }: ViewerNavbarProps) {
   const [openDataModalOpen, setOpenDataModalOpen] = useState(false);
@@ -121,12 +117,6 @@ export default function ViewerNavbar({
       : source?.kind === "czi"
         ? "CZI"
         : null;
-
-  const handleBatchCrop = () => {
-    setToolsOpen(false);
-    setPresetsOpen(false);
-    onBatchCrop?.();
-  };
 
   const handleLoadQ20Preset = () => {
     setToolsOpen(false);
@@ -216,20 +206,6 @@ export default function ViewerNavbar({
                   className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 rounded-2xl border border-border bg-card p-2 shadow-[0_20px_40px_rgba(0,0,0,0.28)]"
                   style={{ backdropFilter: "none", opacity: 1 }}
                 >
-                  <button
-                    type="button"
-                    className="flex w-full items-start rounded-xl bg-card px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-55"
-                    disabled={!canBatchCrop}
-                    onClick={handleBatchCrop}
-                    style={{ backdropFilter: "none", opacity: 1 }}
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Batch Crop</p>
-                      <p className="text-xs text-muted-foreground">
-                        Crop all saved bbox CSVs
-                      </p>
-                    </div>
-                  </button>
                   <div className="relative">
                     <button
                       type="button"

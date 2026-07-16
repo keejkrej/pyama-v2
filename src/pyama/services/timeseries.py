@@ -9,7 +9,7 @@ from typing import Callable
 
 import pandas as pd
 
-from transfection.core import (
+from pyama.core import (
     SlideChannelMapping,
     SlideMapping,
     compute_masked_roi_metrics,
@@ -19,7 +19,7 @@ from transfection.core import (
     validate_slide_mapping,
     write_metrics_csv,
 )
-from transfection.core.export import parallel_xlsx_path
+from pyama.core.export import parallel_xlsx_path
 
 
 

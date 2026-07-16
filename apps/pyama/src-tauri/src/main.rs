@@ -2,40 +2,33 @@
 
 mod cli_launch;
 
-use std::{
-    collections::HashSet,
-    env,
-    net::TcpListener,
-    path::Path,
-    sync::{Arc, Mutex},
-    thread,
-    time::{Duration, Instant},
-};
+#[cfg(target_os = "linux")]
+use std::path::Path;
+use std::{env, net::TcpListener, thread};
 
 use clap::Parser;
 use lisca::host_fs;
 use lisca::viewer::backend::{
-    auto_exclude_preview as run_auto_exclude_preview, crop_roi as run_crop_roi,
+    auto_exclude_preview as run_auto_exclude_preview,
     list_saved_bbox_positions as run_list_saved_bbox_positions,
     load_align_state as run_load_align_state, load_annotation_labels as run_load_annotation_labels,
     load_frame_payload, load_roi_frame_annotation as run_load_roi_frame_annotation,
     load_roi_frame_payload, save_annotation_labels as run_save_annotation_labels,
     save_bbox as run_save_bbox, save_roi_frame_annotation as run_save_roi_frame_annotation,
     scan_roi_workspace as run_scan_roi_workspace, scan_source as run_scan_source, AnnotationLabel,
-    AutoExcludePreviewRequest, AutoExcludePreviewResponse, ContrastWindow, CropOutputFormat,
-    CropRoiResponse, CropRoiStatus, FramePayload, FrameRequest, LoadedRoiFrameAnnotation,
-    RoiFrameAnnotation, RoiFrameAnnotationPayload as BackendRoiFrameAnnotationPayload, RoiFrameRequest,
+    AutoExcludePreviewRequest, AutoExcludePreviewResponse, ContrastWindow, FramePayload,
+    FrameRequest, LoadedRoiFrameAnnotation, RoiFrameAnnotation,
+    RoiFrameAnnotationPayload as BackendRoiFrameAnnotationPayload, RoiFrameRequest,
     RoiWorkspaceScan,
     SaveBboxResponse, SavedAlignState, ViewerSource, WorkspaceScan,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{json, Value};
-use tauri::{command, Emitter, State, WebviewWindow};
+use serde_json::Value;
+use tauri::command;
 use cli_launch::{server_listen_addr, Cli, CliCommand};
 use tungstenite::{accept, Message};
 
 const WEBSOCKET_DEFAULT_ADDR: &str = "127.0.0.1:3412";
-const CROP_PROGRESS_EVENT: &str = "viewer://crop-progress";
 
 #[derive(Deserialize)]
 struct RpcRequest {
@@ -53,12 +46,6 @@ struct RpcResponse {
     result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
-}
-
-#[derive(Serialize)]
-struct RpcEvent {
-    event: String,
-    payload: Value,
 }
 
 #[derive(Deserialize)]
@@ -141,25 +128,6 @@ struct SaveBboxPayload {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct CropPayload {
-    workspace_path: String,
-    source: ViewerSource,
-    pos: u32,
-    format: CropOutputFormat,
-    batch: Option<usize>,
-    #[serde(rename = "requestId")]
-    request_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CancelCropPayload {
-    #[serde(rename = "requestId")]
-    request_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct ListDirectoryPayload {
     path: Option<String>,
 }
@@ -168,39 +136,6 @@ struct ListDirectoryPayload {
 #[serde(rename_all = "camelCase")]
 struct ReadTextFilePayload {
     path: String,
-}
-
-#[derive(Clone, serde::Serialize)]
-struct CropRoiProgress {
-    request_id: String,
-    progress: f64,
-    message: String,
-}
-
-#[derive(Default)]
-struct CropCancellationRegistry {
-    cancelled: Mutex<HashSet<String>>,
-}
-
-impl CropCancellationRegistry {
-    fn cancel(&self, request_id: &str) {
-        if let Ok(mut cancelled) = self.cancelled.lock() {
-            cancelled.insert(request_id.to_string());
-        }
-    }
-
-    fn is_cancelled(&self, request_id: &str) -> bool {
-        self.cancelled
-            .lock()
-            .map(|cancelled| cancelled.contains(request_id))
-            .unwrap_or(false)
-    }
-
-    fn clear(&self, request_id: &str) {
-        if let Ok(mut cancelled) = self.cancelled.lock() {
-            cancelled.remove(request_id);
-        }
-    }
 }
 
 fn websocket_listen_address() -> String {
@@ -221,7 +156,7 @@ fn websocket_listen_address() -> String {
     address.split('/').next().unwrap_or(address).to_string()
 }
 
-fn spawn_websocket_server(registry: Arc<CropCancellationRegistry>, listen_addr: String) {
+fn spawn_websocket_server(listen_addr: String) {
     let listener = match TcpListener::bind(&listen_addr) {
         Ok(listener) => listener,
         Err(error) => {
@@ -232,11 +167,10 @@ fn spawn_websocket_server(registry: Arc<CropCancellationRegistry>, listen_addr: 
 
     thread::spawn(move || {
         for stream in listener.incoming() {
-            let registry = Arc::clone(&registry);
             match stream {
                 Ok(stream) => {
                     thread::spawn(move || {
-                        handle_websocket_connection(stream, registry);
+                        handle_websocket_connection(stream);
                     });
                 }
                 Err(error) => {
@@ -247,7 +181,7 @@ fn spawn_websocket_server(registry: Arc<CropCancellationRegistry>, listen_addr: 
     });
 }
 
-fn handle_websocket_connection(stream: std::net::TcpStream, registry: Arc<CropCancellationRegistry>) {
+fn handle_websocket_connection(stream: std::net::TcpStream) {
     let mut socket = match accept(stream) {
         Ok(socket) => socket,
         Err(error) => {
@@ -271,7 +205,7 @@ fn handle_websocket_connection(stream: std::net::TcpStream, registry: Arc<CropCa
                     }
                 };
 
-                if let Err(error) = handle_websocket_message(&mut socket, text, &registry) {
+                if let Err(error) = handle_websocket_message(&mut socket, text) {
                     eprintln!("Websocket message handling error: {error}");
                 }
             }
@@ -327,21 +261,6 @@ where
     )
 }
 
-fn send_raw_event(
-    socket: &mut tungstenite::WebSocket<std::net::TcpStream>,
-    event: &str,
-    payload: Value,
-) -> Result<(), String> {
-    let message = RpcEvent {
-        event: event.to_string(),
-        payload,
-    };
-    let text = serde_json::to_string(&message).map_err(|error| error.to_string())?;
-    socket
-        .send(Message::Text(text.into()))
-        .map_err(|error| error.to_string())
-}
-
 fn send_response(
     socket: &mut tungstenite::WebSocket<std::net::TcpStream>,
     response: RpcResponse,
@@ -355,7 +274,6 @@ fn send_response(
 fn handle_websocket_message(
     socket: &mut tungstenite::WebSocket<std::net::TcpStream>,
     text: &str,
-    registry: &Arc<CropCancellationRegistry>,
 ) -> Result<(), String> {
     let request: RpcRequest = serde_json::from_str(text).map_err(|error| error.to_string())?;
 
@@ -373,10 +291,6 @@ fn handle_websocket_message(
             let payload: ReadTextFilePayload = parse_payload(&request)?;
             let body: String = host_fs::read_text_file(payload.path)?;
             emit_result(socket, request.id, body)?
-        }
-        "roi_pos_exists" => {
-            let payload: WorkspacePosPayload = parse_payload(&request)?;
-            emit_result(socket, request.id, roi_pos_exists(payload.workspace_path, payload.pos))?
         }
         "scan_source" => {
             let payload: ScanSourcePayload = parse_payload(&request)?;
@@ -467,90 +381,12 @@ fn handle_websocket_message(
                 ),
             )?;
         }
-        "cancel_crop_roi" => {
-            let payload: CancelCropPayload = parse_payload(&request)?;
-            registry.cancel(&payload.request_id);
-            emit_result::<serde_json::Value>(socket, request.id, Value::Null)?
-        }
-        "crop_roi" => {
-            let payload: CropPayload = parse_payload(&request)?;
-            let request_id_for_event = payload.request_id.clone();
-            let result = execute_crop_roi(
-                &registry,
-                payload.workspace_path,
-                payload.source,
-                payload.pos,
-                payload.format,
-                payload.batch,
-                payload.request_id,
-                |progress, message| {
-                    let event_payload = json!({
-                        "request_id": request_id_for_event.clone(),
-                        "progress": progress,
-                        "message": message,
-                    });
-                    send_raw_event(socket, CROP_PROGRESS_EVENT, event_payload)
-                },
-            );
-            emit_result(socket, request.id, result)?
-        }
         _ => {
             emit_error(socket, request.id, format!("Unknown method: {}", request.method))?;
         }
     }
 
     Ok(())
-}
-
-fn execute_crop_roi(
-    registry: &Arc<CropCancellationRegistry>,
-    workspace_path: String,
-    source: ViewerSource,
-    pos: u32,
-    format: CropOutputFormat,
-    batch: Option<usize>,
-    request_id: String,
-    mut emit_progress: impl FnMut(f64, &str) -> Result<(), String>,
-) -> CropRoiResponse {
-    let mut last_emit_at = Instant::now()
-        .checked_sub(Duration::from_secs(1))
-        .unwrap_or_else(Instant::now);
-    let mut last_progress = -1.0f64;
-    let request_id_for_cancel = request_id.clone();
-
-    let response = run_crop_roi(
-        workspace_path,
-        source,
-        pos,
-        format,
-        batch,
-        &mut |progress, message| {
-            let should_emit = progress >= 1.0
-                || progress <= 0.0
-                || (progress - last_progress).abs() >= 0.01
-                || last_emit_at.elapsed() >= Duration::from_millis(80);
-
-            if !should_emit {
-                return Ok(());
-            }
-
-            last_emit_at = Instant::now();
-            last_progress = progress;
-            emit_progress(progress, &message.to_string())
-        },
-        &|| registry.is_cancelled(&request_id_for_cancel),
-    );
-
-    registry.clear(&request_id_for_cancel);
-    response
-}
-
-#[command]
-fn roi_pos_exists(workspace_path: String, pos: u32) -> bool {
-    Path::new(&workspace_path)
-        .join("roi")
-        .join(format!("Pos{pos}"))
-        .is_dir()
 }
 
 #[command]
@@ -638,71 +474,16 @@ fn save_bbox(
     run_save_bbox(workspace_path, pos, csv, align_state)
 }
 
-#[command]
-fn cancel_crop_roi(request_id: String, registry: State<'_, Arc<CropCancellationRegistry>>) {
-    registry.cancel(&request_id);
-}
-
-#[command]
-async fn crop_roi(
-    window: WebviewWindow,
-    registry: State<'_, Arc<CropCancellationRegistry>>,
-    workspace_path: String,
-    source: ViewerSource,
-    pos: u32,
-    format: CropOutputFormat,
-    batch: Option<usize>,
-    request_id: String,
-) -> Result<CropRoiResponse, String> {
-    let registry = registry.inner().clone();
-    let request_id_for_emit = request_id.clone();
-    let response = tauri::async_runtime::spawn_blocking(move || {
-        execute_crop_roi(
-            &registry,
-            workspace_path,
-            source,
-            pos,
-            format,
-            batch,
-            request_id,
-            move |progress, message| {
-                window
-                    .emit(
-                        "viewer://crop-progress",
-                        CropRoiProgress {
-                            request_id: request_id_for_emit.clone(),
-                            progress,
-                            message: message.to_string(),
-                        },
-                    )
-                    .map_err(|err| err.to_string())
-            },
-        )
-    })
-    .await
-    .unwrap_or_else(|error| CropRoiResponse {
-        ok: false,
-        status: CropRoiStatus::Error,
-        cancelled: None,
-        error: Some(format!("Failed to join ROI crop task: {error}")),
-        output_path: None,
-    });
-
-    Ok(response)
-}
-
 fn main() {
     apply_linux_webkit_workarounds();
 
     let cli = Cli::parse();
 
-    let registry = Arc::new(CropCancellationRegistry::default());
-
     match &cli.command {
         Some(CliCommand::Server(server)) => {
             let port = server.port.unwrap_or(3412);
             let addr = server_listen_addr(port, server.lan);
-            spawn_websocket_server(Arc::clone(&registry), addr.clone());
+            spawn_websocket_server(addr.clone());
             eprintln!("LISCA viewer (headless). Ctrl+C to stop. Listening on {addr}");
             thread::park();
             return;
@@ -710,12 +491,10 @@ fn main() {
         None => {}
     }
 
-    spawn_websocket_server(Arc::clone(&registry), websocket_listen_address());
+    spawn_websocket_server(websocket_listen_address());
 
     tauri::Builder::default()
-        .manage(Arc::clone(&registry))
         .invoke_handler(tauri::generate_handler![
-            roi_pos_exists,
             scan_source,
             load_frame,
             scan_roi_workspace,
@@ -727,9 +506,7 @@ fn main() {
             load_roi_frame,
             load_roi_frame_annotation,
             save_roi_frame_annotation,
-            save_bbox,
-            cancel_crop_roi,
-            crop_roi
+            save_bbox
         ])
 
         .run(tauri::generate_context!())

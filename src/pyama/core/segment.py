@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import tifffile
 
-from transfection.core.roi import PositionIndex, RoiCrop, read_roi_stack, roi_frame_2d
+from pyama.core.roi import PositionIndex, RoiCrop, read_roi_stack, roi_frame_2d
 
 def _box_mean_2d(image: np.ndarray, *, radius: int) -> np.ndarray:
     if radius < 0:

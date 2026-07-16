@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start Jupyter with notebooks/analyze.ipynb
 # Dev: from repo root, run: bash scripts/notebook.sh
-# Prod (transfection.zip): run from extracted bundle root after install.sh
+# Prod (pyama.zip): run from extracted bundle root after install.sh
 
 set -euo pipefail
 
@@ -11,7 +11,7 @@ if [[ -f "$SCRIPT_DIR/../pyproject.toml" ]]; then
 elif [[ -f "$SCRIPT_DIR/pyproject.toml" ]]; then
   REPO_ROOT="$SCRIPT_DIR"
 else
-  echo "Run this script from the repo root (next to pyproject.toml) or from an extracted transfection bundle root." >&2
+  echo "Run this script from the repo root (next to pyproject.toml) or from an extracted pyama bundle root." >&2
   exit 1
 fi
 

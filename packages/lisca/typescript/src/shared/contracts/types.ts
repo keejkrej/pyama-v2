@@ -250,23 +250,12 @@ export interface ViewerDataPort extends ViewerDataSource {
     csv: string,
     alignState: SavedAlignState,
   ): Promise<SaveBboxResponse>;
-  cropRoi(
-    workspacePath: string,
-    source: ViewerSource,
-    pos: number,
-    format: CropOutputFormat,
-    requestId?: string,
-    batch?: number,
-  ): Promise<CropRoiResponse>;
-  cancelCropRoi(requestId: string): Promise<void>;
-  onCropRoiProgress(listener: (event: CropRoiProgressEvent) => void): () => void;
 }
 
 export interface ViewerHostPort {
   listDirectory(path: string | null): Promise<HostListDirectoryResult>;
   userHomeDirectory(): Promise<string>;
   readTextFile(path: string): Promise<string>;
-  roiPosExists(workspacePath: string, pos: number): Promise<boolean>;
 }
 
 export interface ViewerSelection {
@@ -331,21 +320,4 @@ export interface ViewerCanvasStatusMessage {
 export interface SaveBboxResponse {
   ok: boolean;
   error?: string;
-}
-
-export type CropOutputFormat = "tiff";
-export type CropRoiStatus = "success" | "error" | "cancelled";
-
-export interface CropRoiResponse {
-  ok: boolean;
-  status: CropRoiStatus;
-  cancelled?: boolean;
-  error?: string;
-  outputPath?: string;
-}
-
-export interface CropRoiProgressEvent {
-  requestId: string;
-  progress: number;
-  message: string;
 }

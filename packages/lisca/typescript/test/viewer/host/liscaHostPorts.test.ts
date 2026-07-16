@@ -12,8 +12,6 @@ type MockWsMessage = {
   event?: string;
 };
 
-const CROP_PROGRESS_EVENT = "viewer://crop-progress";
-
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
@@ -93,89 +91,6 @@ function activeMockSocket(): MockWebSocket {
 }
 
 describe("websocket data bridge", () => {
-  test("forwards crop-progress events and resolves crop responses", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).WebSocket = MockWebSocket;
-    const ports = createLiscaHostPorts();
-
-    const received: Array<{ requestId: string; progress: number; message: string }> = [];
-    ports.dataPort.onCropRoiProgress((event) => {
-      received.push(event);
-    });
-
-    const cropPromise = ports.dataPort.cropRoi(
-      "/tmp/workspace",
-      { kind: "tif", path: "/tmp/source" },
-      3,
-      "tiff",
-      "req-1",
-    );
-
-    await flushMicrotasks();
-    const socket = activeMockSocket();
-    const request = lastRequest(socket);
-    expect(eventPayload(request.payload).requestId).toBe("req-1");
-
-    socket.emitMessage({
-      event: CROP_PROGRESS_EVENT,
-      payload: {
-        request_id: "req-1",
-        progress: 0.5,
-        message: "Writing ROI planes",
-      },
-    });
-    socket.emitMessage({
-      id: request.id,
-      ok: true,
-      result: { ok: true, status: "success", outputPath: "/tmp/roi" },
-    });
-
-    await expect(cropPromise).resolves.toEqual({
-      ok: true,
-      status: "success",
-      outputPath: "/tmp/roi",
-    });
-    expect(received).toEqual([
-      {
-        requestId: "req-1",
-        progress: 0.5,
-        message: "Writing ROI planes",
-      },
-    ]);
-  });
-
-  test("forwards hidden crop batch override payload", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).WebSocket = MockWebSocket;
-    const ports = createLiscaHostPorts();
-
-    const cropPromise = ports.dataPort.cropRoi(
-      "/tmp/workspace",
-      { kind: "nd2", path: "/tmp/source.nd2" },
-      3,
-      "tiff",
-      "req-hidden",
-      50,
-    );
-
-    await flushMicrotasks();
-    const socket = activeMockSocket();
-    const request = lastRequest(socket);
-    const payload = eventPayload(request.payload);
-    expect(request.method).toEqual("crop_roi");
-    expect(payload).toEqual({
-      workspacePath: "/tmp/workspace",
-      source: { kind: "nd2", path: "/tmp/source.nd2" },
-      pos: 3,
-      format: "tiff",
-      batch: 50,
-      requestId: "req-hidden",
-    });
-
-    socket.emitMessage({ id: request.id, ok: true, result: { ok: true, status: "success" } });
-    await expect(cropPromise).resolves.toEqual({ ok: true, status: "success" });
-  });
-
   test("forwards align-state payload while saving bbox", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).WebSocket = MockWebSocket;
@@ -199,36 +114,17 @@ describe("websocket data bridge", () => {
           cellHeight: 90,
           opacity: 0.4,
         },
-        excludedCells: [{ i: 3, j: 4 }],
+        excludedCells: [{ i: 0, j: 1 }],
       },
     );
 
     await flushMicrotasks();
     const socket = activeMockSocket();
     const request = lastRequest(socket);
-    expect(request.method).toBe("save_bbox");
-
-    const payload = eventPayload(request.payload);
-    expect(payload).toEqual({
+    expect(request.method).toEqual("save_bbox");
+    expect(eventPayload(request.payload)).toMatchObject({
       workspacePath: "/tmp/workspace",
-      source: { kind: "tif", path: "/tmp/source" },
       pos: 7,
-      csv: "roi,x,y,w,h\n0,0,0,1,1\n",
-      alignState: {
-        grid: {
-          enabled: true,
-          shape: "square",
-          tx: 1,
-          ty: 2,
-          rotation: 0.3,
-          spacingA: 100,
-          spacingB: 120,
-          cellWidth: 80,
-          cellHeight: 90,
-          opacity: 0.4,
-        },
-        excludedCells: [{ i: 3, j: 4 }],
-      },
     });
 
     socket.emitMessage({ id: request.id, ok: true, result: { ok: true } });

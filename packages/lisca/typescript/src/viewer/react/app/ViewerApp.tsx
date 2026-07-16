@@ -111,7 +111,6 @@ export default function ViewerApp({
         onOpenJpg={handlePickJpg}
         onOpenNd2={handlePickNd2}
         onOpenCzi={handlePickCzi}
-        onCheckRoiExists={hostPort.roiPosExists}
         onClearSource={() => setSource(null)}
       />
     ) : (

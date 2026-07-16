@@ -9,10 +9,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from transfection import core as paths
-from transfection.core import load_timeseries_csv
-from transfection.core.export import parallel_xlsx_path, write_csv_and_parallel_xlsx
-from transfection.services import auc
+from pyama import core as paths
+from pyama.core import load_timeseries_csv
+from pyama.core.export import parallel_xlsx_path, write_csv_and_parallel_xlsx
+from pyama.services import auc
 
 
 OUTPUT_COLUMNS = (

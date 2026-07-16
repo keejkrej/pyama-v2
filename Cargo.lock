@@ -2722,6 +2722,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0c5ccf5294c6ccd63a74f1565028353830a9c2f5eb0c682c355c471726a6e3f"
 
 [[package]]
+name = "pyama"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "lisca",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tungstenite",
+]
+
+[[package]]
 name = "quick-error"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4273,19 +4286,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "viewer"
-version = "0.2.0"
-dependencies = [
- "clap",
- "lisca",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tungstenite",
-]
 
 [[package]]
 name = "vswhom"

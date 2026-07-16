@@ -27,8 +27,6 @@ export {
   useAlignStateQuery,
   useAnnotationLabelsQuery,
   useAutoExcludePreviewQuery,
-  useCancelCropRoiMutation,
-  useCropRoiMutation,
   useRawAnnotationSourceQuery,
   useRawFrameAnnotationMetaQuery,
   useRoiFrameAnnotationMetaQuery,

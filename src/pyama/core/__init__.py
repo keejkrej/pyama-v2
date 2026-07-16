@@ -1,17 +1,25 @@
-from transfection.core.constants import (
+from pyama.core.bbox import (
+    RoiBbox,
+    discover_bbox_positions,
+    parse_bbox_csv,
+    validate_bboxes,
+    workspace_bbox_csv_path,
+    workspace_roi_pos_dir,
+)
+from pyama.core.constants import (
     DEFAULT_QUARTILES,
     FIGURE_DPI,
     FIGURE_SIZE_IN,
     RESULTS_DIRNAME,
     TIMESERIES_DIRNAME,
 )
-from transfection.core.mask import (
+from pyama.core.mask import (
     default_mask_path,
     position_mask_dir,
     read_mask_stack,
     workspace_mask_dir,
 )
-from transfection.core.metrics import (
+from pyama.core.metrics import (
     compute_masked_roi_metrics,
     compute_roi_metrics,
     load_timeseries_csv,
@@ -19,7 +27,7 @@ from transfection.core.metrics import (
     quantile_column_name,
     write_metrics_csv,
 )
-from transfection.core.roi import (
+from pyama.core.roi import (
     PositionIndex,
     RoiCrop,
     position_dir,
@@ -28,8 +36,8 @@ from transfection.core.roi import (
     roi_frame_2d,
     validate_channel_index,
 )
-from transfection.core.segment import compute_roi_mask_stack, write_mask_tif
-from transfection.core.slide import (
+from pyama.core.segment import compute_roi_mask_stack, write_mask_tif
+from pyama.core.slide import (
     SlideChannelMapping,
     SlideMapping,
     load_slide_mapping,
@@ -41,7 +49,7 @@ from transfection.core.slide import (
     validate_slide_mapping,
     write_slide_mapping,
 )
-from transfection.core.workspace import (
+from pyama.core.workspace import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
     discover_timeseries_csvs,
@@ -61,6 +69,7 @@ __all__ = [
     "RESULTS_DIRNAME",
     "TIMESERIES_DIRNAME",
     "PositionIndex",
+    "RoiBbox",
     "RoiCrop",
     "SlideChannelMapping",
     "SlideMapping",
@@ -70,12 +79,14 @@ __all__ = [
     "compute_roi_mask_stack",
     "compute_roi_metrics",
     "default_mask_path",
+    "discover_bbox_positions",
     "discover_timeseries_csvs",
     "infer_workspace_for_plot_csv",
     "infer_workspace_for_timeseries_dir",
     "is_workspace_metrics_timeseries_csv",
     "load_slide_mapping",
     "load_timeseries_csv",
+    "parse_bbox_csv",
     "parse_position_spec",
     "parse_position_token",
     "parse_quartiles",
@@ -91,10 +102,13 @@ __all__ = [
     "serialize_slide_mapping",
     "slide_channel_labels",
     "trace_color_alpha_from_fluor_name",
+    "validate_bboxes",
     "validate_channel_index",
     "validate_slide_mapping",
+    "workspace_bbox_csv_path",
     "workspace_mask_dir",
     "workspace_results_dir",
+    "workspace_roi_pos_dir",
     "workspace_timeseries_dir",
     "write_mask_tif",
     "write_metrics_csv",

@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "packages/lisca/rust",
-  "apps/viewer/src-tauri",
+  "apps/pyama/src-tauri",
 ]
 resolver = "2"
 

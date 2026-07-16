@@ -11,10 +11,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from transfection import core as paths
-from transfection import core as plot_layout
-from transfection.services import auc
-from transfection.core import (
+from pyama import core as paths
+from pyama import core as plot_layout
+from pyama.services import auc
+from pyama.core import (
     load_timeseries_csv,
     trace_color_alpha_from_fluor_name,
 )

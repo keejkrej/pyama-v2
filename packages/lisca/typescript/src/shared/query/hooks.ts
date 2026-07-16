@@ -11,8 +11,6 @@ import type {
   AnnotationLabel,
   AutoExcludePreviewRequest,
   AutoExcludePreviewResponse,
-  CropOutputFormat,
-  CropRoiResponse,
   RawFrameAnnotation,
   RawFrameAnnotationPayload,
   RawFrameRequest,
@@ -344,44 +342,5 @@ export function useSaveBboxMutation(
       }
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
-  });
-}
-
-export function useCropRoiMutation(
-  backend: ViewerDataPort | null | undefined,
-  options?: UseMutationOptions<
-    CropRoiResponse,
-    Error,
-    {
-      workspacePath: string;
-      source: ViewerSource;
-      pos: number;
-      format: CropOutputFormat;
-      requestId?: string;
-      batch?: number;
-    }
-  >,
-) {
-  const qc = useQueryClient();
-  return useMutation({
-    ...options,
-    mutationFn: ({ workspacePath, source, pos, format, requestId, batch }) =>
-      requireBackend(backend).cropRoi(workspacePath, source, pos, format, requestId, batch),
-    onSuccess: (data, variables, onMutateResult, context) => {
-      void qc.invalidateQueries({
-        queryKey: queryKeys.scanRoiWorkspace(variables.workspacePath),
-      });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
-    },
-  });
-}
-
-export function useCancelCropRoiMutation(
-  backend: ViewerDataPort | null | undefined,
-  options?: UseMutationOptions<void, Error, { requestId: string }>,
-) {
-  return useMutation({
-    ...options,
-    mutationFn: ({ requestId }) => requireBackend(backend).cancelCropRoi(requestId),
   });
 }

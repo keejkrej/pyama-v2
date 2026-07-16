@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from transfection import core as plot_layout
-from transfection.core import (
+from pyama import core as plot_layout
+from pyama.core import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
 )
-from transfection.services.plot_timeseries import percentile_ylim
+from pyama.services.plot_timeseries import percentile_ylim
 
 
 

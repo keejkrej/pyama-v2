@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from transfection import core as paths
-from transfection import core as plot_layout
-from transfection.services import auc, plot_auc, plot_timeseries
-from transfection.core import (
+from pyama import core as paths
+from pyama import core as plot_layout
+from pyama.services import auc, plot_auc, plot_timeseries
+from pyama.core import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
     load_timeseries_csv,

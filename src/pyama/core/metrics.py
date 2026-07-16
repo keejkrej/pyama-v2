@@ -5,9 +5,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from transfection.core.export import write_csv_and_parallel_xlsx
-from transfection.core.mask import default_mask_path, read_mask_stack
-from transfection.core.roi import PositionIndex, read_roi_stack, roi_frame_2d
+from pyama.core.export import write_csv_and_parallel_xlsx
+from pyama.core.mask import default_mask_path, read_mask_stack
+from pyama.core.roi import PositionIndex, read_roi_stack, roi_frame_2d
 
 def quantile_column_name(quartile: float) -> str:
     quartile_pct = quartile * 100.0

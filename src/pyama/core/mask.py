@@ -26,7 +26,7 @@ def default_mask_path(
 
 def read_mask_stack(mask_path: Path, *, time_count: int, frame_shape: tuple[int, int]) -> np.ndarray:
     if not mask_path.is_file():
-        raise ValueError(f"Missing mask TIFF: {mask_path}. Run transfection segment first.")
+        raise ValueError(f"Missing mask TIFF: {mask_path}. Run pyama segment first.")
 
     raw_mask = np.asarray(tifffile.imread(mask_path))
     if raw_mask.ndim == 2 and time_count == 1:

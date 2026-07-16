@@ -2,9 +2,6 @@ import type {
   AutoExcludePreviewRequest,
   AutoExcludePreviewResponse,
   AnnotationLabel,
-  CropOutputFormat,
-  CropRoiProgressEvent,
-  CropRoiResponse,
   FrameRequest,
   FrameResult,
   HostListDirectoryResult,
@@ -56,13 +53,6 @@ interface FramePayload {
   applied_contrast?: FrameResult["appliedContrast"];
 }
 
-interface CropRoiProgressPayload {
-  request_id: string;
-  progress: number;
-  message: string;
-}
-
-const CROP_PROGRESS_EVENT = "viewer://crop-progress";
 const DEFAULT_WEBSOCKET_URL = "ws://127.0.0.1:3412";
 
 function toFrameResult(payload: FramePayload): FrameResult {
@@ -74,14 +64,6 @@ function toFrameResult(payload: FramePayload): FrameResult {
     contrastDomain: payload.contrast_domain,
     suggestedContrast: payload.suggested_contrast,
     appliedContrast: payload.applied_contrast,
-  };
-}
-
-function toCropRoiProgressEvent(payload: CropRoiProgressPayload): CropRoiProgressEvent {
-  return {
-    requestId: payload.request_id,
-    progress: payload.progress,
-    message: payload.message,
   };
 }
 
@@ -492,34 +474,6 @@ export function createLiscaHostPorts(options: LiscaHostPortsOptions = {}): Lisca
         alignState,
       });
     },
-
-    async cropRoi(
-      workspacePath: string,
-      source: ViewerSource,
-      pos: number,
-      format: CropOutputFormat,
-      requestId?: string,
-      batch?: number,
-    ): Promise<CropRoiResponse> {
-      return socket.call<CropRoiResponse>("crop_roi", {
-        workspacePath,
-        source,
-        pos,
-        format,
-        batch,
-        requestId: requestId ?? makeRequestId(),
-      });
-    },
-
-    cancelCropRoi(requestId: string): Promise<void> {
-      return socket.call<void>("cancel_crop_roi", { requestId });
-    },
-
-    onCropRoiProgress(listener: (event: CropRoiProgressEvent) => void) {
-      return socket.subscribe(CROP_PROGRESS_EVENT, (wire) => {
-        listener(toCropRoiProgressEvent(wire as CropRoiProgressPayload));
-      });
-    },
   };
 
   const hostPort: LiscaHostPort = {
@@ -533,10 +487,6 @@ export function createLiscaHostPorts(options: LiscaHostPortsOptions = {}): Lisca
 
     readTextFile(path: string) {
       return socket.call<string>("read_text_file", { path });
-    },
-
-    roiPosExists(workspacePath: string, pos: number) {
-      return socket.call<boolean>("roi_pos_exists", { workspacePath, pos });
     },
   };
 

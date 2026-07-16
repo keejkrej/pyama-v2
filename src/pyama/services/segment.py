@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 
-from transfection.core import (
+from pyama.core import (
     SlideChannelMapping,
     SlideMapping,
     compute_roi_mask_stack,

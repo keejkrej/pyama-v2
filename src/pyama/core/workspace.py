@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from transfection.core.constants import RESULTS_DIRNAME, TIMESERIES_DIRNAME
-from transfection.core.slide import SlideMapping
+from pyama.core.constants import RESULTS_DIRNAME, TIMESERIES_DIRNAME
+from pyama.core.slide import SlideMapping
 
 _TRACE_ALPHA = 0.1
 _WORKSPACE_METRICS_STEM = re.compile(r"^sc\d+_ch\d+$")
