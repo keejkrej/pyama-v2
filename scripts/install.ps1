@@ -46,24 +46,42 @@ try {
         Remove-Item $ZipPath
     }
 
-    if (-not (Test-Path $VenvDir)) {
+    Write-Host "Installing Python 3.12..."
+    & $UvExe python install 3.12
+    if ($LASTEXITCODE -ne 0) {
+        throw "uv python install failed (exit $LASTEXITCODE)"
+    }
+
+    $PythonExe = Join-Path $VenvDir (Join-Path "Scripts" "python.exe")
+    $NeedVenv = $true
+    if (Test-Path -LiteralPath $PythonExe) {
+        $Current = & $PythonExe -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+        if ($LASTEXITCODE -eq 0 -and $Current -eq "3.12") {
+            $NeedVenv = $false
+        } else {
+            Write-Host "Recreating venv (need Python 3.12)..."
+            Remove-Item -LiteralPath $VenvDir -Recurse -Force
+        }
+    }
+
+    if ($NeedVenv) {
         Write-Host "Creating venv..."
-        & $UvExe venv $VenvDir
+        & $UvExe venv --python 3.12 $VenvDir
         if ($LASTEXITCODE -ne 0) {
             throw "uv venv failed (exit $LASTEXITCODE)"
         }
     }
 
     Write-Host "Installing package..."
-    & $UvExe sync --directory $Root
+    & $UvExe sync --python 3.12 --extra notebook --directory $Root
     if ($LASTEXITCODE -ne 0) {
         throw "uv sync failed (exit $LASTEXITCODE)"
     }
 
     Write-Host "Done."
     Write-Host ""
-    Write-Host "Run transfection with:"
-    Write-Host "  & $UvExe run transfection ..."
+    Write-Host "Open notebooks/analyze.ipynb, edit the Config cell, and run the pipeline."
+    Write-Host "  & $UvExe run jupyter notebook notebooks/analyze.ipynb"
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
     $installExitCode = 1

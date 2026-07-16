@@ -10,12 +10,13 @@ from typing import Callable
 
 from transfection.core import (
     SlideChannelMapping,
+    SlideMapping,
     compute_roi_mask_stack,
     default_mask_path,
-    load_slide_mapping,
     position_dir,
     read_position_index,
     validate_channel_index,
+    validate_slide_mapping,
     write_mask_tif,
 )
 
@@ -121,7 +122,7 @@ def _position_tasks(
 def run_slide_segmentation(
     workspace: Path,
     *,
-    sample: Path,
+    mapping: SlideMapping,
     variation_radius: int = 2,
     gaussian_sigma: float = 1.0,
     force: bool = False,
@@ -129,15 +130,14 @@ def run_slide_segmentation(
     jobs: int = 1,
 ) -> SlideSegmentationRunResult:
     if jobs < 1:
-        raise ValueError(f"--jobs must be >= 1, got {jobs}")
+        raise ValueError(f"jobs must be >= 1, got {jobs}")
     if variation_radius < 0:
-        raise ValueError(f"--variation-radius must be >= 0, got {variation_radius}")
+        raise ValueError(f"variation_radius must be >= 0, got {variation_radius}")
     if gaussian_sigma < 0:
-        raise ValueError(f"--gaussian-sigma must be >= 0, got {gaussian_sigma}")
+        raise ValueError(f"gaussian_sigma must be >= 0, got {gaussian_sigma}")
 
     workspace = workspace.resolve()
-    slide_path = sample.resolve()
-    slide_positions = load_slide_mapping(slide_path)
+    slide_positions = validate_slide_mapping(mapping)
     channel_order = [slide_channel for slide_channel, _ in slide_positions.items()]
     tasks = _position_tasks(
         workspace,
@@ -147,7 +147,7 @@ def run_slide_segmentation(
         force=force,
     )
     if not tasks:
-        raise ValueError(f"{slide_path} defines no valid positions")
+        raise ValueError("Slide mapping defines no valid positions")
 
     skipped_positions: dict[int, list[int]] = defaultdict(list)
     written_by_channel: dict[int, tuple[Path, int]] = {}
@@ -186,10 +186,10 @@ def run_slide_segmentation(
                 for slide_channel, positions in sorted(skipped_positions.items())
             )
             raise ValueError(
-                f"No ROI directories found for positions in {slide_path}. "
+                "No ROI directories found for positions in slide mapping. "
                 f"Skipped positions: {skipped_summary}"
             )
-        raise ValueError(f"{slide_path} defines no valid positions")
+        raise ValueError("Slide mapping defines no valid positions")
 
     return SlideSegmentationRunResult(
         written_outputs=written_outputs,
@@ -214,7 +214,7 @@ def format_skipped_positions_message(skipped_positions: dict[int, list[int]]) ->
 def run_segment(
     *,
     workspace: Path,
-    sample: Path,
+    mapping: SlideMapping,
     variation_radius: int = 2,
     gaussian_sigma: float = 1.0,
     force: bool = False,
@@ -223,7 +223,7 @@ def run_segment(
 ) -> SlideSegmentationRunResult:
     return run_slide_segmentation(
         workspace,
-        sample=sample,
+        mapping=mapping,
         variation_radius=variation_radius,
         gaussian_sigma=gaussian_sigma,
         force=force,

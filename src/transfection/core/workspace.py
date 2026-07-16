@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from transfection.core.constants import RESULTS_DIRNAME, TIMESERIES_DIRNAME
-from transfection.core.slide import load_slide_mapping
+from transfection.core.slide import SlideMapping
 
 _TRACE_ALPHA = 0.1
 _WORKSPACE_METRICS_STEM = re.compile(r"^sc\d+_ch\d+$")
@@ -42,7 +42,7 @@ def discover_timeseries_csvs(timeseries_dir: Path) -> list[Path]:
     if not timeseries_dir.is_dir():
         raise ValueError(
             f"Expected {TIMESERIES_DIRNAME}/ directory at {timeseries_dir}. "
-            "Run transfection timeseries first."
+            "Run timeseries first."
         )
     csvs = sorted(timeseries_dir.glob("*.csv"), key=lambda path: path.name)
     if not csvs:
@@ -66,11 +66,7 @@ def infer_workspace_for_timeseries_dir(timeseries_dir: Path) -> Path:
     return timeseries_dir.parent.resolve()
 
 
-def load_slide_channel_labels(workspace: Path) -> dict[int, str]:
-    slide_path = workspace / "slide.json"
-    if not slide_path.is_file():
-        return {}
-    mapping = load_slide_mapping(slide_path)
+def slide_channel_labels(mapping: SlideMapping) -> dict[int, str]:
     return {slide_channel: entry.sample_name for slide_channel, entry in mapping.items()}
 
 

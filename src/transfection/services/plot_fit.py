@@ -16,8 +16,6 @@ from transfection.services import auc, plot_auc, plot_timeseries
 from transfection.core import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
-    infer_workspace_for_plot_csv,
-    load_slide_channel_labels,
     load_timeseries_csv,
     trace_color_alpha_from_fluor_name,
 )
@@ -41,6 +39,7 @@ FIT_TRACE_PARAMETERS = (
 def run_plot_fit(
     fit_csv: Path,
     *,
+    slide_channel_names: dict[int, str],
     output: Path | None,
     interval: float,
     columns: int,
@@ -48,7 +47,6 @@ def run_plot_fit(
     resolved_fit_csv = fit_csv.resolve()
     df = load_fit_csv(resolved_fit_csv)
     output_paths = default_output_plot_paths(resolved_fit_csv, output)
-    slide_channel_names = load_slide_channel_labels(infer_workspace_for_plot_csv(fit_csv))
     written_paths: list[Path] = []
     for parameter, label in PLOTTED_PARAMETERS:
         output_plot = output_paths[parameter]

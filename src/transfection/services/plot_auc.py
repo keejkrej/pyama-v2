@@ -13,8 +13,6 @@ from transfection import core as plot_layout
 from transfection.core import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
-    infer_workspace_for_plot_csv,
-    load_slide_channel_labels,
 )
 from transfection.services.plot_timeseries import percentile_ylim
 
@@ -118,9 +116,12 @@ def format_written_auc_plot_message(output_plot: Path) -> str:
     return format_written_auc_plot_messages([output_plot])[0]
 
 
-def run_plot_auc(*, auc_csv: Path, output: Path | None = None) -> tuple[Path, Path]:
-    workspace = infer_workspace_for_plot_csv(auc_csv)
-    slide_channel_names = load_slide_channel_labels(workspace)
+def run_plot_auc(
+    *,
+    auc_csv: Path,
+    slide_channel_names: dict[int, str],
+    output: Path | None = None,
+) -> tuple[Path, Path]:
     return render_plot_auc(
         auc_csv,
         output=output,

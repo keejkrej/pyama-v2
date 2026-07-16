@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import matplotlib as mpl
 
-HELP = "Microscopy ROI pipelines: slide mapping, segmentation masks, and timeseries metrics."
-PROG_NAME = "transfection"
 TIMESERIES_DIRNAME = "timeseries"
 RESULTS_DIRNAME = "results"
 DEFAULT_QUARTILES = "0.10,0.25,0.50,0.75,0.90"

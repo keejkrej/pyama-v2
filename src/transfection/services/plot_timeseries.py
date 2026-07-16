@@ -15,8 +15,6 @@ from transfection import core as paths
 from transfection import core as plot_layout
 from transfection.services import auc
 from transfection.core import (
-    infer_workspace_for_timeseries_dir,
-    load_slide_channel_labels,
     load_timeseries_csv,
     trace_color_alpha_from_fluor_name,
 )
@@ -238,13 +236,12 @@ def run_plot_timeseries(
     *,
     metrics_dir: Path,
     interval: float,
+    slide_channel_names: dict[int, str],
     output: Path | None = None,
     columns: int = 3,
 ) -> tuple[Path, ...]:
     timeseries_csvs = paths.discover_timeseries_csvs(metrics_dir)
     results_dir = paths.workspace_results_dir(metrics_dir.parent)
-    workspace = infer_workspace_for_timeseries_dir(metrics_dir)
-    slide_channel_names = load_slide_channel_labels(workspace)
     return render_plot_timeseries(
         timeseries_csvs,
         interval=interval,

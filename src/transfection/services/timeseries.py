@@ -11,11 +11,12 @@ import pandas as pd
 
 from transfection.core import (
     SlideChannelMapping,
+    SlideMapping,
     compute_masked_roi_metrics,
-    load_slide_mapping,
     position_dir,
     read_position_index,
     validate_channel_index,
+    validate_slide_mapping,
     write_metrics_csv,
 )
 from transfection.core.export import parallel_xlsx_path
@@ -33,7 +34,7 @@ class SlideTimeseriesRunResult:
     skipped_positions: dict[int, list[int]]
 
 
-load_slide_position_groups = load_slide_mapping
+load_slide_position_groups = validate_slide_mapping
 
 
 def default_slide_timeseries_csv_path(
@@ -192,17 +193,16 @@ def _consume_position_row(
 def run_slide_timeseries(
     workspace: Path,
     *,
-    sample: Path,
+    mapping: SlideMapping,
     mask_channel: int | None = None,
     correction_quartile: float = DELIVERY_CORRECTION_QUARTILE,
     on_csv_written: CsvWrittenCallback | None = None,
     jobs: int = 1,
 ) -> SlideTimeseriesRunResult:
     if jobs < 1:
-        raise ValueError(f"--jobs must be >= 1, got {jobs}")
+        raise ValueError(f"jobs must be >= 1, got {jobs}")
     workspace = workspace.resolve()
-    slide_path = sample.resolve()
-    slide_positions = load_slide_mapping(slide_path)
+    slide_positions = validate_slide_mapping(mapping)
     channel_order = [slide_channel for slide_channel, _ in slide_positions.items()]
     position_tasks: list[tuple[str, int, int, int, int, float]] = [
         (
@@ -218,7 +218,7 @@ def run_slide_timeseries(
     ]
 
     if not position_tasks:
-        raise ValueError(f"{slide_path} defines no valid positions")
+        raise ValueError("Slide mapping defines no valid positions")
 
     receivers = _receivers_for_slide(workspace, slide_positions, correction_quartile)
     skipped_positions: dict[int, list[int]] = defaultdict(list)
@@ -275,10 +275,10 @@ def run_slide_timeseries(
                 for slide_channel, positions in sorted(skipped_positions.items())
             )
             raise ValueError(
-                f"No ROI directories found for positions in {slide_path}. "
+                "No ROI directories found for positions in slide mapping. "
                 f"Skipped positions: {skipped_summary}"
             )
-        raise ValueError(f"{slide_path} defines no valid positions")
+        raise ValueError("Slide mapping defines no valid positions")
 
     return SlideTimeseriesRunResult(
         written_outputs=written_outputs,
@@ -308,7 +308,7 @@ def format_skipped_positions_message(skipped_positions: dict[int, list[int]]) ->
 def run_timeseries(
     *,
     workspace: Path,
-    sample: Path,
+    mapping: SlideMapping,
     mask_channel: int | None = None,
     correction_quartile: float = DELIVERY_CORRECTION_QUARTILE,
     on_csv_written: CsvWrittenCallback | None = None,
@@ -316,7 +316,7 @@ def run_timeseries(
 ) -> SlideTimeseriesRunResult:
     return run_slide_timeseries(
         workspace,
-        sample=sample,
+        mapping=mapping,
         mask_channel=mask_channel,
         correction_quartile=correction_quartile,
         on_csv_written=on_csv_written,

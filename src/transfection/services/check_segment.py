@@ -12,14 +12,15 @@ import numpy as np
 
 from transfection.core import (
     RoiCrop,
+    SlideMapping,
     default_mask_path,
-    load_slide_mapping,
     position_dir,
     read_mask_stack,
     read_position_index,
     read_roi_stack,
     roi_frame_2d,
     validate_channel_index,
+    validate_slide_mapping,
 )
 from transfection.services.segment import format_skipped_positions_message
 
@@ -292,7 +293,7 @@ def format_written_check_segment_video_message(video: CheckSegmentVideo) -> str:
 def run_check_segment(
     *,
     workspace: Path,
-    sample: Path,
+    mapping: SlideMapping,
     output: Path | None = None,
     fps: float = 6.0,
     force: bool = False,
@@ -300,14 +301,13 @@ def run_check_segment(
     jobs: int = 1,
 ) -> CheckSegmentRunResult:
     if jobs < 1:
-        raise ValueError(f"--jobs must be >= 1, got {jobs}")
+        raise ValueError(f"jobs must be >= 1, got {jobs}")
     if fps <= 0:
-        raise ValueError(f"--fps must be > 0, got {fps}")
+        raise ValueError(f"fps must be > 0, got {fps}")
 
     workspace = workspace.resolve()
     output_dir = default_output_dir(workspace) if output is None else output.resolve()
-    slide_path = sample.resolve()
-    slide_positions = load_slide_mapping(slide_path)
+    slide_positions = validate_slide_mapping(mapping)
     tasks = _position_tasks(
         workspace,
         slide_positions,
@@ -316,7 +316,7 @@ def run_check_segment(
         force=force,
     )
     if not tasks:
-        raise ValueError(f"{slide_path} defines no valid positions")
+        raise ValueError("Slide mapping defines no valid positions")
 
     skipped_positions: dict[int, list[int]] = defaultdict(list)
     videos: list[CheckSegmentVideo] = []
@@ -348,7 +348,7 @@ def run_check_segment(
                 for slide_channel, positions in sorted(skipped_positions.items())
             )
             raise ValueError(
-                f"No check-segment videos produced for positions in {slide_path}. "
+                "No check-segment videos produced for positions in slide mapping. "
                 f"Skipped positions: {skipped_summary}"
             )
         raise ValueError("No check-segment videos produced")

@@ -5,7 +5,7 @@ This repository contains the LISCA desktop viewer application, the shared librar
 - `packages/lisca/typescript`: shared TypeScript viewer contracts, state, UI, and host integration
 - `packages/lisca/rust`: shared Rust native backend for viewer workflows
 - `apps/viewer`: standalone Tauri viewer shell
-- `src/transfection`: Python package for slide mapping, segmentation masks, timeseries metrics, AUC, and curve fitting
+- `src/transfection`: Python package for slide mapping, segmentation masks, timeseries metrics, AUC, and curve fitting (driven from `notebooks/analyze.ipynb`)
 
 ## Architecture
 
@@ -42,9 +42,9 @@ Rust remains managed by Cargo directly via `bun run check:rust` or plain `cargo`
 
 ## transfection
 
-`transfection` is a Python CLI for processing microscopy datasets.
+`transfection` is a Python library for processing microscopy datasets. Experiment configuration (slide mapping, interval, jobs, etc.) lives in a Jupyter notebook; the package exports only reusable `core` and `services` code.
 
-Pipeline: `slide` → `segment` → `timeseries` → `plot-timeseries` → `auc` → `plot-auc` → `fit` → `plot-fit`
+Pipeline: `segment` → `timeseries` → `plot-timeseries` → `auc` → `plot-auc` → `fit` → `plot-fit`
 
 ### Install
 
@@ -59,19 +59,16 @@ From the repo root, run the platform-specific install script. It downloads `uv` 
   .\scripts\install.ps1
   ```
 
-### Run the CLI
-
-After install, run commands with `uv`:
+For notebook use, also install the optional extras:
 
 ```bash
-uv run transfection --help
+uv sync --extra notebook
 ```
 
-### Interactive scripts
+### Run analysis
 
-For convenience, two interactive shell scripts walk through common pipelines:
+1. Open [`notebooks/analyze.ipynb`](notebooks/analyze.ipynb).
+2. Edit the **Config** cell (`WORKSPACE`, `SLIDE_MAPPING`, interval, jobs, …).
+3. Run the setup cell, then the pipeline cells in order.
 
-- `bash scripts/transfection-slide.sh` — build a `slide.json` channel mapping file.
-- `bash scripts/transfection-analyze.sh` — run the full analysis pipeline on a dataset.
-
-Windows equivalents are `scripts/transfection-slide.ps1` and `scripts/transfection-analyze.ps1`.
+Optional: set `WRITE_SLIDE_JSON = True` to persist the in-notebook mapping as `slide.json` under the workspace.
