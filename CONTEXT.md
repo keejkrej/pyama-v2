@@ -1,6 +1,6 @@
 # Pyama
 
-Desktop viewer and Python analysis package for microscopy ROI workflows. The viewer aligns a grid over ND2/CZI frames and writes workspace artifacts; the Python package consumes those artifacts for crop, segment, timeseries, AUC, and fit.
+Desktop app and Python analysis package for microscopy ROI workflows. Pyama aligns a grid over ND2/CZI frames and writes workspace artifacts; the Python package consumes those artifacts for crop, segment, timeseries, AUC, and fit.
 
 ## Language
 
@@ -11,7 +11,7 @@ The root folder that holds ROI workflow artifacts (`bbox/`, `align/`, and later 
 _Avoid_: project root, experiment folder, data directory
 
 **Source**:
-An ND2 or CZI image file opened in the viewer.
+An ND2 or CZI image file opened in Pyama.
 _Avoid_: image, file, dataset (when meaning the microscopy file)
 
 **Scan**:

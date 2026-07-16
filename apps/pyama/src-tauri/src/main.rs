@@ -8,12 +8,12 @@ use std::{env, net::TcpListener, thread};
 
 use clap::Parser;
 use pyama::host_fs;
-use pyama::viewer::backend::{
+use pyama::backend::{
     auto_exclude_preview as run_auto_exclude_preview,
     list_saved_bbox_positions as run_list_saved_bbox_positions,
     load_align_state as run_load_align_state, load_frame_payload, save_bbox as run_save_bbox,
     scan_source as run_scan_source, AutoExcludePreviewRequest, AutoExcludePreviewResponse,
-    ContrastWindow, FramePayload, FrameRequest, SaveBboxResponse, AlignState, ViewerSource,
+    ContrastWindow, FramePayload, FrameRequest, SaveBboxResponse, AlignState, Source,
     WorkspaceScan,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -45,7 +45,7 @@ struct RpcResponse {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ScanSourcePayload {
-    source: ViewerSource,
+    source: Source,
 }
 
 #[derive(Deserialize)]
@@ -64,7 +64,7 @@ struct WorkspacePosPayload {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LoadFramePayload {
-    source: ViewerSource,
+    source: Source,
     request: FrameRequest,
     contrast: Option<ContrastWindow>,
 }
@@ -304,13 +304,13 @@ fn handle_websocket_message(
 }
 
 #[command]
-fn scan_source(source: ViewerSource) -> Result<WorkspaceScan, String> {
+fn scan_source(source: Source) -> Result<WorkspaceScan, String> {
     run_scan_source(source)
 }
 
 #[command]
 fn load_frame(
-    source: ViewerSource,
+    source: Source,
     request: FrameRequest,
     contrast: Option<ContrastWindow>,
 ) -> Result<FramePayload, String> {
@@ -360,7 +360,7 @@ fn main() {
             let port = server.port.unwrap_or(3412);
             let addr = server_listen_addr(port, server.lan);
             spawn_websocket_server(addr.clone());
-            eprintln!("Pyama viewer (headless). Ctrl+C to stop. Listening on {addr}");
+            eprintln!("Pyama (headless). Ctrl+C to stop. Listening on {addr}");
             thread::park();
             return;
         }

@@ -3,12 +3,12 @@ use std::cmp::Ordering;
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use serde::Serialize;
 
-pub use crate::viewer::domain::{
+pub use crate::domain::{
     AutoExcludeHistogramBin, AutoExcludePreviewCell, AutoExcludePreviewCellScore,
     AutoExcludePreviewRequest, AutoExcludePreviewResponse, ContrastWindow, FrameRequest,
-    SaveBboxResponse, AlignState, ViewerSource, WorkspaceScan,
+    SaveBboxResponse, AlignState, Source, WorkspaceScan,
 };
-use crate::viewer::image::{self, apply_contrast, auto_contrast, load_frame, RawFrame};
+use crate::image::{self, apply_contrast, auto_contrast, load_frame, RawFrame};
 
 const AUTO_EXCLUDE_BIN_COUNT: usize = 40;
 const AUTO_EXCLUDE_EPSILON: f64 = 1.0;
@@ -207,12 +207,12 @@ fn otsu_threshold(bins: &[AutoExcludeHistogramBin]) -> f64 {
     best_threshold
 }
 
-pub fn scan_source(source: ViewerSource) -> Result<WorkspaceScan, String> {
+pub fn scan_source(source: Source) -> Result<WorkspaceScan, String> {
     image::scan_source(source)
 }
 
 pub fn load_frame_payload(
-    source: ViewerSource,
+    source: Source,
     request: FrameRequest,
     contrast: Option<ContrastWindow>,
 ) -> Result<FramePayload, String> {
@@ -262,14 +262,14 @@ pub fn auto_exclude_preview(
 }
 
 pub fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, String> {
-    crate::viewer::roi::list_saved_bbox_positions(workspace_path)
+    crate::roi::list_saved_bbox_positions(workspace_path)
 }
 
 pub fn load_align_state(
     workspace_path: String,
     pos: u32,
 ) -> Result<Option<AlignState>, String> {
-    crate::viewer::roi::load_align_state(workspace_path, pos)
+    crate::roi::load_align_state(workspace_path, pos)
 }
 
 pub fn save_bbox(
@@ -278,14 +278,14 @@ pub fn save_bbox(
     csv: String,
     align_state: AlignState,
 ) -> SaveBboxResponse {
-    crate::viewer::roi::save_bbox(workspace_path, pos, csv, align_state)
+    crate::roi::save_bbox(workspace_path, pos, csv, align_state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::viewer::domain::ContrastWindow;
-    use crate::viewer::image::RawFrame;
+    use crate::domain::ContrastWindow;
+    use crate::image::RawFrame;
 
     #[test]
     fn flatness_score_prefers_flatter_cells() {

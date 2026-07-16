@@ -14,7 +14,7 @@ pub struct WorkspaceScan {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "lowercase")]
-pub enum ViewerSource {
+pub enum Source {
     Nd2 { path: String },
     Czi { path: String },
 }
@@ -82,7 +82,7 @@ pub struct AutoExcludePreviewCell {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AutoExcludePreviewRequest {
-    pub source: ViewerSource,
+    pub source: Source,
     pub selection: FrameRequest,
     pub cells: Vec<AutoExcludePreviewCell>,
 }

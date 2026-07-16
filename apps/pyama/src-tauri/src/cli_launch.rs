@@ -1,4 +1,4 @@
-//! CLI for the Pyama viewer: `server` subcommand.
+//! CLI for Pyama: `server` subcommand.
 
 use clap::{Args, Parser, Subcommand};
 
