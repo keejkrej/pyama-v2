@@ -67,8 +67,11 @@ uv sync --extra notebook
 
 ### Run analysis
 
-1. Open [`notebooks/analyze.ipynb`](notebooks/analyze.ipynb).
-2. Edit the **Config** cell (`WORKSPACE`, `SLIDE_MAPPING`, interval, jobs, …).
-3. Run the setup cell, then the pipeline cells in order.
+Start Jupyter with the analysis notebook:
+
+- macOS / Linux: `bash scripts/notebook.sh`
+- Windows: `.\scripts\notebook.ps1`
+
+Then edit the **Config** cell (`WORKSPACE`, `SLIDE_MAPPING`, interval, jobs, …) and run the pipeline cells in order.
 
 Optional: set `WRITE_SLIDE_JSON = True` to persist the in-notebook mapping as `slide.json` under the workspace.

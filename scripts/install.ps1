@@ -80,8 +80,8 @@ try {
 
     Write-Host "Done."
     Write-Host ""
-    Write-Host "Open notebooks/analyze.ipynb, edit the Config cell, and run the pipeline."
-    Write-Host "  & $UvExe run jupyter notebook notebooks/analyze.ipynb"
+    Write-Host "Start the analysis notebook with:"
+    Write-Host "  .\scripts\notebook.ps1"
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
     $installExitCode = 1

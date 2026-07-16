@@ -57,5 +57,5 @@ echo "Installing package..."
 
 echo "Done."
 echo ""
-echo "Open notebooks/analyze.ipynb, edit the Config cell, and run the pipeline."
-echo "  $UV_BIN run --directory \"$ROOT\" jupyter notebook notebooks/analyze.ipynb"
+echo "Start the analysis notebook with:"
+echo "  bash scripts/notebook.sh"
