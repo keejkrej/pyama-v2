@@ -52,13 +52,9 @@ _Avoid_: SavedState, SavedAlignState, session JSON
 
 ### Host seam
 
-**DataPort**:
-The host adapter interface for loading frames, scans, align state, and saving bbox outputs.
-_Avoid_: backend API, RPC client (as the domain name)
-
-**HostPort**:
-The host adapter interface for native file/folder picking and filesystem browsing.
-_Avoid_: FS API, dialog service
+**HostApi**:
+The Tauri IPC surface for loading frames, scans, align state, saving bbox outputs, and host filesystem helpers (directory listing, home, read text).
+_Avoid_: DataPort, HostPort, backend API, RPC client (as the domain name)
 
 ### Python analysis chain
 

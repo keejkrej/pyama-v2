@@ -5,17 +5,17 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { createHostPorts } from "../../src/lib/host";
+import { createHostApi } from "../../src/lib/host";
 
 afterEach(() => {
   vi.mocked(invoke).mockClear();
 });
 
-describe("tauri ipc data bridge", () => {
+describe("tauri ipc host api", () => {
   test("forwards align-state payload while saving bbox", async () => {
-    const ports = createHostPorts();
+    const api = createHostApi();
 
-    const result = await ports.dataPort.saveBbox(
+    const result = await api.saveBbox(
       "/tmp/workspace",
       { kind: "nd2", path: "/tmp/source.nd2" },
       7,

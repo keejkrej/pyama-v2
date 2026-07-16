@@ -12,7 +12,7 @@ import type {
   AutoExcludePreviewResponse,
   AlignState,
   SaveBboxResponse,
-  DataPort,
+  HostApi,
   Source,
   WorkspaceScan,
 } from "@/lib/contracts";
@@ -59,27 +59,27 @@ function enabledQueryOptions<T>(
 }
 
 export function useScanSourceQuery(
-  backend: DataPort | null | undefined,
+  api: HostApi | null | undefined,
   source: Source | null | undefined,
   options?: HookQueryOptions<WorkspaceScan>,
 ) {
   return useQuery(
     enabledQueryOptions(
-      backend && source ? scanSourceQueryOptions(backend, source) : null,
+      api && source ? scanSourceQueryOptions(api, source) : null,
       options,
     ),
   );
 }
 
 export function useSavedBboxPositionsQuery(
-  backend: DataPort | null | undefined,
+  api: HostApi | null | undefined,
   workspacePath: string | null | undefined,
   options?: HookQueryOptions<number[]>,
 ) {
   return useQuery(
     enabledQueryOptions(
-      backend && workspacePath
-        ? savedBboxPositionsQueryOptions(backend, workspacePath)
+      api && workspacePath
+        ? savedBboxPositionsQueryOptions(api, workspacePath)
         : null,
       options,
     ),
@@ -87,7 +87,7 @@ export function useSavedBboxPositionsQuery(
 }
 
 export function useAlignStateQuery(
-  backend: DataPort | null | undefined,
+  api: HostApi | null | undefined,
   workspacePath: string | null | undefined,
   pos: number | null | undefined,
   options?: Omit<
@@ -96,17 +96,17 @@ export function useAlignStateQuery(
   >,
 ) {
   const canQuery =
-    !!backend && !!workspacePath && pos != null && !Number.isNaN(pos);
+    !!api && !!workspacePath && pos != null && !Number.isNaN(pos);
   return useQuery(
     enabledQueryOptions(
-      canQuery ? alignStateQueryOptions(backend, workspacePath, pos) : null,
+      canQuery ? alignStateQueryOptions(api, workspacePath, pos) : null,
       options,
     ),
   );
 }
 
 export function useAutoExcludePreviewQuery(
-  backend: DataPort | null | undefined,
+  api: HostApi | null | undefined,
   request: AutoExcludePreviewRequest | null | undefined,
   options?: Omit<
     UseQueryOptions<AutoExcludePreviewResponse, Error, AutoExcludePreviewResponse, readonly unknown[]>,
@@ -115,7 +115,7 @@ export function useAutoExcludePreviewQuery(
 ) {
   return useQuery({
     ...enabledQueryOptions(
-      backend && request ? autoExcludePreviewQueryOptions(backend, request) : null,
+      api && request ? autoExcludePreviewQueryOptions(api, request) : null,
       options,
     ),
     staleTime: options?.staleTime ?? 0,
@@ -124,15 +124,15 @@ export function useAutoExcludePreviewQuery(
 
 // --- Mutations ---
 
-function requireBackend(backend: DataPort | null | undefined): DataPort {
-  if (!backend) {
-    throw new Error("Data backend is not available");
+function requireApi(api: HostApi | null | undefined): HostApi {
+  if (!api) {
+    throw new Error("Host API is not available");
   }
-  return backend;
+  return api;
 }
 
 export function useSaveBboxMutation(
-  backend: DataPort | null | undefined,
+  api: HostApi | null | undefined,
   options?: UseMutationOptions<
     SaveBboxResponse,
     Error,
@@ -149,7 +149,7 @@ export function useSaveBboxMutation(
   return useMutation({
     ...options,
     mutationFn: ({ workspacePath, source, pos, csv, alignState }) =>
-      requireBackend(backend).saveBbox(workspacePath, source, pos, csv, alignState),
+      requireApi(api).saveBbox(workspacePath, source, pos, csv, alignState),
     onSuccess: (data, variables, onMutateResult, context) => {
       if (data.ok) {
         qc.setQueryData<number[]>(

@@ -5,12 +5,11 @@ import type {
   AutoExcludePreviewResponse,
   FrameRequest,
   FrameResult,
+  HostApi,
   HostListDirectoryResult,
   LoadFrameOptions,
   AlignState,
   SaveBboxResponse,
-  DataPort,
-  HostPort,
   Source,
   WorkspaceScan,
 } from "@/lib/contracts";
@@ -50,15 +49,9 @@ function decodeBase64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
-/** Ports backed by Tauri `invoke` IPC. */
-export interface HostPorts {
-  dataPort: DataPort;
-  hostPort: HostPort;
-}
-
-/** Host filesystem helpers and data commands over Tauri IPC. */
-export function createHostPorts(): HostPorts {
-  const dataPort: DataPort = {
+/** HostApi backed by Tauri `invoke` IPC. */
+export function createHostApi(): HostApi {
+  return {
     scanSource(source: Source): Promise<WorkspaceScan> {
       return invoke<WorkspaceScan>("scan_source", { source });
     },
@@ -102,9 +95,7 @@ export function createHostPorts(): HostPorts {
         alignState,
       });
     },
-  };
 
-  const hostPort: HostPort = {
     listDirectory(path: string | null) {
       return invoke<HostListDirectoryResult>("list_directory", { path });
     },
@@ -116,10 +107,5 @@ export function createHostPorts(): HostPorts {
     readTextFile(path: string) {
       return invoke<string>("read_text_file", { path });
     },
-  };
-
-  return {
-    dataPort,
-    hostPort,
   };
 }

@@ -4,7 +4,7 @@ import type {
   AutoExcludePreviewRequest,
   AutoExcludePreviewResponse,
   AlignState,
-  DataPort,
+  HostApi,
   Source,
   WorkspaceScan,
 } from "@/lib/contracts";
@@ -19,45 +19,45 @@ export const QUERY_STALE_TIME = {
   metadata: 30_000,
 } as const;
 
-export function scanSourceQueryOptions(backend: DataPort, source: Source) {
+export function scanSourceQueryOptions(api: HostApi, source: Source) {
   return {
     queryKey: queryKeys.scanSource(source),
     queryFn: ({ signal }) => {
       void signal;
-      return backend.scanSource(source);
+      return api.scanSource(source);
     },
     staleTime: QUERY_STALE_TIME.workspaceScan,
   } satisfies AppQueryOptions<WorkspaceScan>;
 }
 
-export function savedBboxPositionsQueryOptions(backend: DataPort, workspacePath: string) {
+export function savedBboxPositionsQueryOptions(api: HostApi, workspacePath: string) {
   return {
     queryKey: queryKeys.savedBboxPositions(workspacePath),
     queryFn: ({ signal }) => {
       void signal;
-      return backend.listSavedBboxPositions(workspacePath);
+      return api.listSavedBboxPositions(workspacePath);
     },
     staleTime: QUERY_STALE_TIME.metadata,
   } satisfies AppQueryOptions<number[]>;
 }
 
-export function alignStateQueryOptions(backend: DataPort, workspacePath: string, pos: number) {
+export function alignStateQueryOptions(api: HostApi, workspacePath: string, pos: number) {
   return {
     queryKey: queryKeys.alignState(workspacePath, pos),
     queryFn: ({ signal }) => {
       void signal;
-      return backend.loadAlignState(workspacePath, pos);
+      return api.loadAlignState(workspacePath, pos);
     },
     staleTime: QUERY_STALE_TIME.metadata,
   } satisfies AppQueryOptions<AlignState | null>;
 }
 
-export function autoExcludePreviewQueryOptions(backend: DataPort, request: AutoExcludePreviewRequest) {
+export function autoExcludePreviewQueryOptions(api: HostApi, request: AutoExcludePreviewRequest) {
   return {
     queryKey: queryKeys.autoExcludePreview(request),
     queryFn: ({ signal }) => {
       void signal;
-      return backend.autoExcludePreview(request);
+      return api.autoExcludePreview(request);
     },
     staleTime: QUERY_STALE_TIME.preview,
   } satisfies AppQueryOptions<AutoExcludePreviewResponse>;

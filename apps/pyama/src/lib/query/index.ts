@@ -1,5 +1,5 @@
 /**
- * Shared TanStack Query integration for `DataPort` IPC.
+ * Shared TanStack Query integration for `HostApi` IPC.
  *
  * **Cache policy:** queryFns in this module never persist {@link import("@/lib/contracts").FrameResult}
  * (pixel buffers).

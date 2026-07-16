@@ -6,10 +6,10 @@ import Workspace from "@/components/Workspace";
 import { AnchoredToastProvider, ToastProvider } from "@/components/ui";
 import type { HostFilePickerMode } from "@/lib/contracts";
 import { makeSourceKey } from "@/lib/core";
-import { createHostPorts } from "@/lib/host";
+import { createHostApi } from "@/lib/host";
 import { appStore, setSource, setWorkspacePath } from "@/lib/store";
 
-const { dataPort, hostPort } = createHostPorts();
+const hostApi = createHostApi();
 
 export default function App() {
   const workspacePath = useStore(appStore, (state) => state.workspacePath);
@@ -60,7 +60,7 @@ export default function App() {
             key={source ? `source:${makeSourceKey(source)}` : "source:none"}
             workspacePath={workspacePath}
             source={source}
-            backend={dataPort}
+            api={hostApi}
             onPickWorkspace={handlePickWorkspace}
             onOpenNd2={handlePickNd2}
             onOpenCzi={handlePickCzi}
@@ -74,7 +74,7 @@ export default function App() {
             setFilePicker((prev) => ({ ...prev, open }));
             if (!open) pickerModeRef.current = null;
           }}
-          hostPort={hostPort}
+          api={hostApi}
           mode={filePicker.mode}
           title={filePicker.title}
           onPickDirectory={applyHostPickDirectory}

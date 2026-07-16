@@ -77,11 +77,6 @@ export interface FrameResult {
   appliedContrast?: ContrastWindow;
 }
 
-export interface DataSource {
-  scanSource(source: Source): Promise<WorkspaceScan>;
-  loadFrame(source: Source, request: FrameRequest, options?: LoadFrameOptions): Promise<FrameResult>;
-}
-
 export interface HostFsEntry {
   name: string;
   path: string;
@@ -101,7 +96,10 @@ export type HostFilePickerMode =
   | "nd2_file"
   | "czi_file";
 
-export interface DataPort extends DataSource {
+/** Tauri IPC surface for microscopy data and host filesystem helpers. */
+export interface HostApi {
+  scanSource(source: Source): Promise<WorkspaceScan>;
+  loadFrame(source: Source, request: FrameRequest, options?: LoadFrameOptions): Promise<FrameResult>;
   listSavedBboxPositions(workspacePath: string): Promise<number[]>;
   loadAlignState(workspacePath: string, pos: number): Promise<AlignState | null>;
   autoExcludePreview(request: AutoExcludePreviewRequest): Promise<AutoExcludePreviewResponse>;
@@ -112,9 +110,6 @@ export interface DataPort extends DataSource {
     csv: string,
     alignState: AlignState,
   ): Promise<SaveBboxResponse>;
-}
-
-export interface HostPort {
   listDirectory(path: string | null): Promise<HostListDirectoryResult>;
   userHomeDirectory(): Promise<string>;
   readTextFile(path: string): Promise<string>;

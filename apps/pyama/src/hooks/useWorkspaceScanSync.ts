@@ -1,6 +1,6 @@
 import { useStore } from "zustand";
 
-import type { DataPort, Source } from "@/lib/contracts";
+import type { HostApi, Source } from "@/lib/contracts";
 import { useAlignStateQuery, useScanSourceQuery } from "@/lib/query";
 
 import { appStore } from "@/lib/store";
@@ -8,16 +8,16 @@ import { useSyncAlignStateQuery, useSyncScanSourceQuery } from "./syncQueryToSto
 
 /** Owns scan + saved-state TanStack queries and bridges them into {@link appStore}. */
 export function useWorkspaceScanSync(
-  backend: DataPort,
+  api: HostApi,
   workspacePath: string | null,
   source: Source | null,
 ) {
   const selectedPos = useStore(appStore, (s) => s.selection?.pos ?? null);
 
-  const scanSourceQuery = useScanSourceQuery(backend, source, {
+  const scanSourceQuery = useScanSourceQuery(api, source, {
     enabled: Boolean(source),
   });
-  const alignStateQuery = useAlignStateQuery(backend, workspacePath, selectedPos, {
+  const alignStateQuery = useAlignStateQuery(api, workspacePath, selectedPos, {
     enabled: selectedPos != null && Boolean(workspacePath),
   });
 

@@ -1,20 +1,6 @@
-import { Cause, Option } from "effect";
-
 function toError(error: unknown, fallback: string): Error {
   if (error instanceof Error) {
     return error;
-  }
-  if (Cause.isCause(error)) {
-    const failure = Cause.failureOption(error);
-    if (Option.isSome(failure)) {
-      return toError(failure.value, fallback);
-    }
-    const defect = Cause.dieOption(error);
-    if (Option.isSome(defect)) {
-      return toError(defect.value, fallback);
-    }
-    const squashed = Cause.squash(error);
-    return toError(squashed, fallback);
   }
   if (
     typeof error === "object" &&

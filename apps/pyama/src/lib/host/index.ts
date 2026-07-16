@@ -1,5 +1,2 @@
-export {
-  createHostPorts,
-  type HostPorts,
-} from "./hostPorts";
-export type { HostPort } from "@/lib/contracts";
+export { createHostApi } from "./hostApi";
+export type { HostApi } from "@/lib/contracts";

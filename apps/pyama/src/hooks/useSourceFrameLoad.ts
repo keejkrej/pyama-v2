@@ -1,12 +1,10 @@
-import { Effect, Exit } from "effect";
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
 
-import type { DataPort, Selection, Source } from "@/lib/contracts";
+import type { HostApi, Selection, Source } from "@/lib/contracts";
 import { makeFrameKey } from "@/lib/core";
 import type { FrameCache } from "@/lib/frameCache";
-
-import { loadFrameEffect } from "@/lib/effects";
+import { loadFrameWithContrast } from "@/lib/loadFrame";
 import { toErrorMessage } from "@/lib/errors";
 import type { ContrastMode } from "@/lib/store";
 import { patchViewState } from "@/lib/store";
@@ -14,7 +12,7 @@ import { patchViewState } from "@/lib/store";
 import { contrastWindowForFrame, normalizeContrastWindow } from "./frameContrast";
 
 export interface UseSourceFrameLoadArgs {
-  backend: DataPort | null;
+  api: HostApi | null;
   source: Source | null;
   selection: Selection | null;
   contrastMode: ContrastMode;
@@ -30,11 +28,11 @@ export interface UseSourceFrameLoadArgs {
 }
 
 /**
- * Loads the main canvas frame via {@link loadFrameEffect}, wiring loading/error and optional
+ * Loads the main canvas frame via {@link loadFrameWithContrast}, wiring loading/error and optional
  * in-memory frame cache (workspace only).
  */
 export function useSourceFrameLoad({
-  backend,
+  api,
   source,
   selection,
   contrastMode,
@@ -44,7 +42,7 @@ export function useSourceFrameLoad({
   frameCacheRef,
 }: UseSourceFrameLoadArgs) {
   useEffect(() => {
-    if (!backend || !source || !selection) return;
+    if (!api || !source || !selection) return;
 
     const frameKey = makeFrameKey(source, selection);
     const cacheKey = `${frameKey}:${contrastRequestKey}`;
@@ -66,67 +64,53 @@ export function useSourceFrameLoad({
       }
     }
 
-    const abortController = new AbortController();
+    let cancelled = false;
     patchViewState({ loading: true, error: null });
 
-    const program = loadFrameEffect(backend, source, selection, {
-      mode: contrastMode,
-      min: contrastMin,
-      max: contrastMax,
-    }).pipe(
-      Effect.tap(({ frame: loadedFrame }) =>
-        Effect.sync(() => {
-          if (frameCacheRef) {
-            frameCacheRef.current.set(cacheKey, { frame: loadedFrame });
-          }
-        }),
-      ),
-      Effect.tap(({ frame: loadedFrame, contrastMin: cmin, contrastMax: cmax }) =>
-        Effect.sync(() => {
-          if (frameCacheRef && contrastMode === "auto") {
+    void (async () => {
+      try {
+        const { frame: loadedFrame, contrastMin: cmin, contrastMax: cmax } =
+          await loadFrameWithContrast(api, source, selection, {
+            mode: contrastMode,
+            min: contrastMin,
+            max: contrastMax,
+          });
+
+        if (cancelled) return;
+
+        if (frameCacheRef) {
+          frameCacheRef.current.set(cacheKey, { frame: loadedFrame });
+          if (contrastMode === "auto") {
             frameCacheRef.current.set(`${frameKey}:${cmin}:${cmax}`, {
               frame: loadedFrame,
             });
           }
-          patchViewState({
-            contrastMin: cmin,
-            contrastMax: cmax,
-            contrastMode: "manual",
-            frame: loadedFrame,
-          });
-        }),
-      ),
-      Effect.catchAll((error) =>
-        Effect.sync(() => {
-          patchViewState({
-            error: toErrorMessage(error),
-            frame: null,
-          });
-        }),
-      ),
-      Effect.ensuring(
-        Effect.sync(() => {
-          patchViewState({ loading: false });
-        }),
-      ),
-    );
+        }
 
-    void Effect.runPromiseExit(program, {
-      signal: abortController.signal,
-    }).then((exit) => {
-      if (!Exit.isFailure(exit)) return;
-      if (abortController.signal.aborted) return;
-      patchViewState({
-        error: toErrorMessage(exit.cause),
-        frame: null,
-      });
-    });
+        patchViewState({
+          contrastMin: cmin,
+          contrastMax: cmax,
+          contrastMode: "manual",
+          frame: loadedFrame,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        patchViewState({
+          error: toErrorMessage(error),
+          frame: null,
+        });
+      } finally {
+        if (!cancelled) {
+          patchViewState({ loading: false });
+        }
+      }
+    })();
 
     return () => {
-      abortController.abort();
+      cancelled = true;
     };
   }, [
-    backend,
+    api,
     contrastMax,
     contrastMin,
     contrastMode,
