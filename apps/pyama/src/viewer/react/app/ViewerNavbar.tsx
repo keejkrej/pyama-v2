@@ -1,10 +1,9 @@
 import {
   type MouseEvent,
   useEffect,
-  useRef,
   useState,
 } from "react";
-import { ChevronLeft, FolderOpen, HardDrive, X } from "lucide-react";
+import { FolderOpen, HardDrive, X } from "lucide-react";
 
 import type { ViewerSource } from "@/shared/contracts";
 import { Button } from "@/shared/ui";
@@ -13,65 +12,40 @@ import { ContextSummary, ServerConnectionButton } from "@/shared/react";
 interface ViewerNavbarProps {
   workspacePath: string | null;
   source: ViewerSource | null;
-  modeChangeDisabled?: boolean;
   onPickWorkspace: () => void | Promise<void>;
   onOpenNd2: () => void | Promise<void>;
   onOpenCzi: () => void | Promise<void>;
   onClearSource: () => void;
-  onLoadQ20Preset?: () => void;
-  canLoadQ20Preset?: boolean;
 }
 
 export default function ViewerNavbar({
   workspacePath,
   source,
-  modeChangeDisabled = false,
   onPickWorkspace,
   onOpenNd2,
   onOpenCzi,
   onClearSource,
-  onLoadQ20Preset,
-  canLoadQ20Preset = false,
 }: ViewerNavbarProps) {
   const [openDataModalOpen, setOpenDataModalOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const [presetsOpen, setPresetsOpen] = useState(false);
-  const toolsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!openDataModalOpen && !toolsOpen) return undefined;
+    if (!openDataModalOpen) return undefined;
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpenDataModalOpen(false);
-        setToolsOpen(false);
-        setPresetsOpen(false);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openDataModalOpen, toolsOpen]);
+  }, [openDataModalOpen]);
 
   useEffect(() => {
     if (!workspacePath) {
       setOpenDataModalOpen(false);
     }
   }, [workspacePath]);
-
-  useEffect(() => {
-    if (!toolsOpen) return undefined;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!toolsRef.current?.contains(event.target as Node)) {
-        setToolsOpen(false);
-        setPresetsOpen(false);
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => window.removeEventListener("pointerdown", handlePointerDown);
-  }, [toolsOpen]);
 
   const handleOpenNd2 = async () => {
     setOpenDataModalOpen(false);
@@ -89,12 +63,6 @@ export default function ViewerNavbar({
   };
 
   const sourceBadge = source?.kind === "nd2" ? "ND2" : source?.kind === "czi" ? "CZI" : null;
-
-  const handleLoadQ20Preset = () => {
-    setToolsOpen(false);
-    setPresetsOpen(false);
-    onLoadQ20Preset?.();
-  };
 
   return (
     <>
@@ -137,71 +105,6 @@ export default function ViewerNavbar({
           <div className="min-w-0 justify-self-end">
             <div className="flex items-center justify-end gap-2">
               <ServerConnectionButton />
-              <div ref={toolsRef} className="relative">
-              <Button
-                size="sm"
-                variant={toolsOpen ? "default" : "outline"}
-                className="min-w-[5.5rem]"
-                disabled={modeChangeDisabled}
-                onClick={() => {
-                  setOpenDataModalOpen(false);
-                  setToolsOpen((current) => {
-                    const next = !current;
-                    if (!next) {
-                      setPresetsOpen(false);
-                    }
-                    return next;
-                  });
-                }}
-              >
-                Tools
-              </Button>
-              {toolsOpen ? (
-                <div
-                  className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 rounded-2xl border border-border bg-card p-2 shadow-[0_20px_40px_rgba(0,0,0,0.28)]"
-                  style={{ backdropFilter: "none", opacity: 1 }}
-                >
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-xl bg-card px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-55"
-                      disabled={!canLoadQ20Preset}
-                      onClick={() => setPresetsOpen((current) => !current)}
-                      style={{ backdropFilter: "none", opacity: 1 }}
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Load Preset</p>
-                        <p className="text-xs text-muted-foreground">
-                          Apply a hardcoded align preset
-                        </p>
-                      </div>
-                      <ChevronLeft className="size-4 shrink-0 text-muted-foreground" />
-                    </button>
-                    {presetsOpen ? (
-                      <div
-                        className="absolute right-[calc(100%+0.5rem)] top-0 z-50 w-52 rounded-2xl border border-border bg-card p-2 shadow-[0_20px_40px_rgba(0,0,0,0.24)]"
-                        style={{ backdropFilter: "none", opacity: 1 }}
-                      >
-                      <button
-                        type="button"
-                        className="flex w-full items-start rounded-xl bg-card px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-55"
-                        disabled={!canLoadQ20Preset}
-                        onClick={handleLoadQ20Preset}
-                        style={{ backdropFilter: "none", opacity: 1 }}
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Q20</p>
-                          <p className="text-xs text-muted-foreground">
-                            Square, 168 pitch, 128 cell size
-                          </p>
-                        </div>
-                      </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </div>
             </div>
           </div>
         </div>

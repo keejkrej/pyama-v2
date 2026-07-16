@@ -82,7 +82,6 @@ import { toErrorMessage } from "./viewerEffects";
 import { useViewerAlignWorkspaceScanSync } from "../hooks/useViewerAlignWorkspaceScanSync";
 import { contrastWindowForFrame } from "../hooks/viewerFrameContrast";
 import { useViewerSourceFrameLoad } from "../hooks/useViewerSourceFrameLoad";
-import { applyQ20Preset } from "./tools";
 import ViewerNavbar from "./ViewerNavbar";
 import {
   AppSelect,
@@ -460,11 +459,6 @@ export default function ViewerAlignWorkspace({
     setAutoExcludeOpen(false);
   }, [autoExcludePreview, autoExcludeThreshold, selection]);
 
-  const handleLoadQ20Preset = useCallback(() => {
-    setGrid((current) => applyQ20Preset(current));
-    showSuccessToast("Loaded preset Q20");
-  }, []);
-
   const bboxPath = useMemo(() => {
     if (!selection) return "bbox/Pos{n}.csv";
     return `bbox/Pos${selection.pos}.csv`;
@@ -633,8 +627,6 @@ export default function ViewerAlignWorkspace({
           onOpenNd2={onOpenNd2}
           onOpenCzi={onOpenCzi}
           onClearSource={onClearSource}
-          onLoadQ20Preset={handleLoadQ20Preset}
-          canLoadQ20Preset
         />
 
         <main className="flex-1 min-h-0 overflow-hidden">
