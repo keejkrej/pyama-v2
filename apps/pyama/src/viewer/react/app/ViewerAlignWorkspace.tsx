@@ -106,8 +106,6 @@ interface ViewerAlignWorkspaceProps {
   source: ViewerSource | null;
   backend: ViewerDataPort;
   onPickWorkspace: () => void | Promise<void>;
-  onOpenTif: () => void | Promise<void>;
-  onOpenJpg: () => void | Promise<void>;
   onOpenNd2: () => void | Promise<void>;
   onOpenCzi: () => void | Promise<void>;
   onClearSource: () => void;
@@ -163,8 +161,6 @@ export default function ViewerAlignWorkspace({
   source,
   backend,
   onPickWorkspace,
-  onOpenTif,
-  onOpenJpg,
   onOpenNd2,
   onOpenCzi,
   onClearSource,
@@ -389,15 +385,11 @@ export default function ViewerAlignWorkspace({
 
   const emptyText = useMemo(() => {
     if (!workspacePath) return "Select a workspace folder to save bbox CSVs";
-    if (!source) return "Select a TIFF/JPG folder, ND2 file, or CZI file to load frames";
+    if (!source) return "Select an ND2 or CZI file to load frames";
     if (scan && scan.positions.length === 0) {
       return source.kind === "nd2"
         ? "No frames found in ND2 file"
-        : source.kind === "jpg"
-          ? "No frames found in JPG folder"
-        : source.kind === "czi"
-          ? "No frames found in CZI file"
-          : "No frames found in TIF folder";
+        : "No frames found in CZI file";
     }
     return "No frame loaded";
   }, [scan, source, workspacePath]);
@@ -638,8 +630,6 @@ export default function ViewerAlignWorkspace({
           workspacePath={workspacePath}
           source={source}
           onPickWorkspace={onPickWorkspace}
-          onOpenTif={onOpenTif}
-          onOpenJpg={onOpenJpg}
           onOpenNd2={onOpenNd2}
           onOpenCzi={onOpenCzi}
           onClearSource={onClearSource}

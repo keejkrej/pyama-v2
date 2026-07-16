@@ -1,136 +1,11 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::viewer::domain::{
-    parse_bbox_csv_name, workspace_align_json_path, workspace_bbox_csv_path,
-    workspace_roi_pos_dir_path, RoiBbox, SaveBboxResponse, SavedAlignState,
+    parse_bbox_csv_name, workspace_align_json_path, workspace_bbox_csv_path, SaveBboxResponse,
+    SavedAlignState,
 };
-
-pub(crate) fn parse_bbox_csv(path: &Path) -> Result<Vec<RoiBbox>, String> {
-    let csv = fs::read_to_string(path).map_err(|err| err.to_string())?;
-    let mut lines = csv.lines().filter(|line| !line.trim().is_empty());
-    let header = lines
-        .next()
-        .ok_or_else(|| "BBox CSV is empty".to_string())?
-        .split(',')
-        .map(|value| value.trim().to_ascii_lowercase())
-        .collect::<Vec<_>>();
-
-    let roi_idx = header
-        .iter()
-        .position(|value| value == "roi" || value == "crop")
-        .ok_or_else(|| "BBox CSV is missing roi/crop column".to_string())?;
-    let x_idx = header
-        .iter()
-        .position(|value| value == "x")
-        .ok_or_else(|| "BBox CSV is missing x column".to_string())?;
-    let y_idx = header
-        .iter()
-        .position(|value| value == "y")
-        .ok_or_else(|| "BBox CSV is missing y column".to_string())?;
-    let w_idx = header
-        .iter()
-        .position(|value| value == "w")
-        .ok_or_else(|| "BBox CSV is missing w column".to_string())?;
-    let h_idx = header
-        .iter()
-        .position(|value| value == "h")
-        .ok_or_else(|| "BBox CSV is missing h column".to_string())?;
-    let required_idx = *[roi_idx, x_idx, y_idx, w_idx, h_idx]
-        .iter()
-        .max()
-        .expect("bbox indices should exist");
-
-    let mut bboxes = Vec::new();
-    let mut seen_rois = BTreeSet::new();
-    for (line_number, line) in lines.enumerate() {
-        let parts = line
-            .split(',')
-            .map(|value| value.trim())
-            .collect::<Vec<_>>();
-        if parts.len() <= required_idx {
-            return Err(format!("BBox CSV row {} is malformed", line_number + 2));
-        }
-
-        let bbox = RoiBbox {
-            roi: parts[roi_idx]
-                .parse()
-                .map_err(|_| format!("Invalid roi value on row {}", line_number + 2))?,
-            x: parts[x_idx]
-                .parse()
-                .map_err(|_| format!("Invalid x value on row {}", line_number + 2))?,
-            y: parts[y_idx]
-                .parse()
-                .map_err(|_| format!("Invalid y value on row {}", line_number + 2))?,
-            w: parts[w_idx]
-                .parse()
-                .map_err(|_| format!("Invalid w value on row {}", line_number + 2))?,
-            h: parts[h_idx]
-                .parse()
-                .map_err(|_| format!("Invalid h value on row {}", line_number + 2))?,
-        };
-
-        if bbox.w == 0 || bbox.h == 0 {
-            return Err(format!(
-                "BBox row {} must have positive width and height",
-                line_number + 2
-            ));
-        }
-        if !seen_rois.insert(bbox.roi) {
-            return Err(format!("Duplicate roi {} in bbox CSV", bbox.roi));
-        }
-
-        bboxes.push(bbox);
-    }
-
-    if bboxes.is_empty() {
-        return Err("BBox CSV does not contain any ROI rows".to_string());
-    }
-
-    bboxes.sort_by_key(|bbox| bbox.roi);
-    Ok(bboxes)
-}
-
-pub(crate) fn validate_bboxes(bboxes: &[RoiBbox], width: u32, height: u32) -> Result<(), String> {
-    for bbox in bboxes {
-        let max_x = bbox
-            .x
-            .checked_add(bbox.w)
-            .ok_or_else(|| format!("ROI {} overflows x bounds", bbox.roi))?;
-        let max_y = bbox
-            .y
-            .checked_add(bbox.h)
-            .ok_or_else(|| format!("ROI {} overflows y bounds", bbox.roi))?;
-        if max_x > width || max_y > height {
-            return Err(format!(
-                "ROI {} bbox ({}, {}, {}, {}) exceeds frame bounds {}x{}",
-                bbox.roi, bbox.x, bbox.y, bbox.w, bbox.h, width, height
-            ));
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn crop_u16_frame(frame: &[u16], frame_width: u32, bbox: &RoiBbox) -> Vec<u16> {
-    let mut cropped = vec![0u16; (bbox.w * bbox.h) as usize];
-    for row in 0..bbox.h {
-        let src_start = ((bbox.y + row) * frame_width + bbox.x) as usize;
-        let dst_start = (row * bbox.w) as usize;
-        cropped[dst_start..dst_start + bbox.w as usize]
-            .copy_from_slice(&frame[src_start..src_start + bbox.w as usize]);
-    }
-    cropped
-}
-
-pub(crate) fn prepare_roi_output_dir(workspace_path: &str, pos: u32) -> Result<PathBuf, String> {
-    let pos_dir = workspace_roi_pos_dir_path(workspace_path, pos);
-    if pos_dir.exists() {
-        fs::remove_dir_all(&pos_dir).map_err(|err| err.to_string())?;
-    }
-    fs::create_dir_all(&pos_dir).map_err(|err| err.to_string())?;
-    Ok(pos_dir)
-}
 
 pub fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, String> {
     let root = Path::new(&workspace_path).join("bbox");
@@ -242,6 +117,7 @@ pub fn save_bbox(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;

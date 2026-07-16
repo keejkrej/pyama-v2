@@ -20,7 +20,6 @@ export type {
   PixelType,
   SavedAlignState,
   SaveBboxResponse,
-  TifSource,
   ViewerCanvasStatusMessage,
   ViewerCanvasStatusTone,
   ViewerDataPort,

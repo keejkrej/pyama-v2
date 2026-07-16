@@ -15,8 +15,6 @@ interface ViewerNavbarProps {
   source: ViewerSource | null;
   modeChangeDisabled?: boolean;
   onPickWorkspace: () => void | Promise<void>;
-  onOpenTif: () => void | Promise<void>;
-  onOpenJpg: () => void | Promise<void>;
   onOpenNd2: () => void | Promise<void>;
   onOpenCzi: () => void | Promise<void>;
   onClearSource: () => void;
@@ -29,8 +27,6 @@ export default function ViewerNavbar({
   source,
   modeChangeDisabled = false,
   onPickWorkspace,
-  onOpenTif,
-  onOpenJpg,
   onOpenNd2,
   onOpenCzi,
   onClearSource,
@@ -77,19 +73,9 @@ export default function ViewerNavbar({
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [toolsOpen]);
 
-  const handleOpenTif = async () => {
-    setOpenDataModalOpen(false);
-    await onOpenTif();
-  };
-
   const handleOpenNd2 = async () => {
     setOpenDataModalOpen(false);
     await onOpenNd2();
-  };
-
-  const handleOpenJpg = async () => {
-    setOpenDataModalOpen(false);
-    await onOpenJpg();
   };
 
   const handleOpenCzi = async () => {
@@ -102,15 +88,7 @@ export default function ViewerNavbar({
     onClearSource();
   };
 
-  const sourceBadge = source?.kind === "nd2"
-    ? "ND2"
-    : source?.kind === "jpg"
-      ? "JPG"
-    : source?.kind === "tif"
-      ? "TIFF"
-      : source?.kind === "czi"
-        ? "CZI"
-        : null;
+  const sourceBadge = source?.kind === "nd2" ? "ND2" : source?.kind === "czi" ? "CZI" : null;
 
   const handleLoadQ20Preset = () => {
     setToolsOpen(false);
@@ -268,27 +246,7 @@ export default function ViewerNavbar({
             </div>
 
             <div className="px-5 pb-5">
-              <div className="grid grid-cols-4 gap-3">
-                <button
-                  type="button"
-                  className="group flex min-h-24 w-full items-center justify-center rounded-2xl border border-border/70 bg-muted/[0.12] px-4 py-5 text-center transition-colors hover:border-primary/35 hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => void handleOpenTif()}
-                >
-                  <p className="text-[1.1rem] font-medium tracking-[0.02em] text-foreground transition-colors group-hover:text-primary">
-                    TIFF
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  className="group flex min-h-24 w-full items-center justify-center rounded-2xl border border-border/70 bg-muted/[0.12] px-4 py-5 text-center transition-colors hover:border-primary/35 hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => void handleOpenJpg()}
-                >
-                  <p className="text-[1.1rem] font-medium tracking-[0.02em] text-foreground transition-colors group-hover:text-primary">
-                    PNG
-                  </p>
-                </button>
-
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   className="group flex min-h-24 w-full items-center justify-center rounded-2xl border border-border/70 bg-muted/[0.12] px-4 py-5 text-center transition-colors hover:border-primary/35 hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

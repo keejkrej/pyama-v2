@@ -17,7 +17,7 @@ describe("viewer store exclusion actions", () => {
   test("resetExcludedCells clears only the requested position", () => {
     viewerStore.setState({
       ...initialState,
-      source: { kind: "tif", path: "/tmp/source" },
+      source: { kind: "nd2", path: "/tmp/source.nd2" },
       selection: { pos: 2, channel: 0, time: 0, z: 0 },
       excludedCellsByPosition: {
         2: [{ i: 0, j: 0 }, { i: 0, j: 1 }],
@@ -37,7 +37,7 @@ describe("viewer store exclusion actions", () => {
   test("applySavedAlignState replaces the grid and excluded cells for the position", () => {
     viewerStore.setState({
       ...initialState,
-      source: { kind: "tif", path: "/tmp/source" },
+      source: { kind: "nd2", path: "/tmp/source.nd2" },
       selection: { pos: 5, channel: 0, time: 0, z: 0 },
       grid: {
         enabled: false,
@@ -94,7 +94,7 @@ describe("viewer store exclusion actions", () => {
   test("applySavedAlignState keeps the current grid and clears exclusions when no saved state exists", () => {
     viewerStore.setState({
       ...initialState,
-      source: { kind: "tif", path: "/tmp/source" },
+      source: { kind: "nd2", path: "/tmp/source.nd2" },
       selection: { pos: 6, channel: 0, time: 0, z: 0 },
       grid: {
         enabled: true,

@@ -5,16 +5,6 @@ export interface WorkspaceScan {
   zSlices: number[];
 }
 
-export interface TifSource {
-  kind: "tif";
-  path: string;
-}
-
-export interface JpgSource {
-  kind: "jpg";
-  path: string;
-}
-
 export interface Nd2Source {
   kind: "nd2";
   path: string;
@@ -25,7 +15,7 @@ export interface CziSource {
   path: string;
 }
 
-export type ViewerSource = TifSource | JpgSource | Nd2Source | CziSource;
+export type ViewerSource = Nd2Source | CziSource;
 
 export type PixelType =
   | "uint8"
@@ -108,8 +98,6 @@ export interface HostListDirectoryResult {
 /** Modes for the in-browser filesystem picker (mirrors native dialog intents). */
 export type HostFilePickerMode =
   | "workspace"
-  | "tif_dir"
-  | "jpg_dir"
   | "nd2_file"
   | "czi_file";
 

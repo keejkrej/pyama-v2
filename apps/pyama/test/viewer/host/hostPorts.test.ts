@@ -98,7 +98,7 @@ describe("websocket data bridge", () => {
 
     const savePromise = ports.dataPort.saveBbox(
       "/tmp/workspace",
-      { kind: "tif", path: "/tmp/source" },
+      { kind: "nd2", path: "/tmp/source.nd2" },
       7,
       "roi,x,y,w,h\n0,0,0,1,1\n",
       {

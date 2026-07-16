@@ -97,7 +97,7 @@ function parseStoredSource(raw: string | null): ViewerSource | null {
     if (
       parsed &&
       typeof parsed === "object" &&
-      (parsed.kind === "tif" || parsed.kind === "jpg" || parsed.kind === "nd2" || parsed.kind === "czi") &&
+      (parsed.kind === "nd2" || parsed.kind === "czi") &&
       typeof parsed.path === "string" &&
       parsed.path
     ) {
@@ -112,11 +112,15 @@ function parseLegacySource(raw: string | null): ViewerSource | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as { kind?: string; path?: string };
-    if (parsed?.kind === "workspace" && typeof parsed.path === "string" && parsed.path) {
-      return { kind: "tif", path: parsed.path };
+    if (
+      (parsed?.kind === "nd2" || parsed?.kind === "czi") &&
+      typeof parsed.path === "string" &&
+      parsed.path
+    ) {
+      return { kind: parsed.kind, path: parsed.path };
     }
   } catch {
-    return { kind: "tif", path: raw };
+    return null;
   }
   return null;
 }
@@ -160,9 +164,6 @@ function readStoredExcludedCells(
 
   try {
     let raw = storage.getItem(excludedBboxStorageKey(source));
-    if (!raw && (source.kind === "tif" || source.kind === "jpg")) {
-      raw = storage.getItem(`${EXCLUDED_BBOX_KEY_PREFIX}:${encodeURIComponent(source.path)}`);
-    }
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const entries = Object.entries(parsed).flatMap(([position, value]) => {

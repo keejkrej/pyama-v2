@@ -3,20 +3,6 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum ParsedSourceChannel {
-    Numeric(u32),
-    Named(String),
-}
-
-#[derive(Clone, Debug)]
-pub struct ParsedSourceImageName {
-    pub channel: ParsedSourceChannel,
-    pub position: u32,
-    pub time: u32,
-    pub z: u32,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WorkspaceScan {
     pub positions: Vec<u32>,
@@ -29,8 +15,6 @@ pub struct WorkspaceScan {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ViewerSource {
-    Tif { path: String },
-    Jpg { path: String },
     Nd2 { path: String },
     Czi { path: String },
 }
@@ -137,15 +121,6 @@ pub struct SaveBboxResponse {
     pub error: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct RoiBbox {
-    pub roi: u32,
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
-}
-
 pub fn parse_pos_dir_name(name: &str) -> Option<u32> {
     let normalized: String = name.chars().filter(|c| !c.is_whitespace()).collect();
     if normalized.is_empty() {
@@ -175,60 +150,6 @@ pub fn parse_bbox_csv_name(name: &str) -> Option<u32> {
     parse_pos_dir_name(stem)
 }
 
-pub fn parse_source_image_name(
-    name: &str,
-    position_hint: Option<u32>,
-) -> Option<ParsedSourceImageName> {
-    let extension = Path::new(name)
-        .extension()
-        .and_then(|value| value.to_str())?
-        .to_ascii_lowercase();
-    if !matches!(extension.as_str(), "tif" | "tiff" | "png" | "jpg" | "jpeg") {
-        return None;
-    }
-
-    let stem = Path::new(name).file_stem()?.to_str()?;
-    let lower = stem.to_ascii_lowercase();
-
-    if let Some(rest) = lower.strip_prefix("img_channel") {
-        let parts: Vec<&str> = rest.split('_').collect();
-        if parts.len() == 4 {
-            let channel = parts[0].parse().ok()?;
-            let position = parts[1].strip_prefix("position")?.parse().ok()?;
-            let time = parts[2].strip_prefix("time")?.parse().ok()?;
-            let z = parts[3].strip_prefix("z")?.parse().ok()?;
-
-            return Some(ParsedSourceImageName {
-                channel: ParsedSourceChannel::Numeric(channel),
-                position,
-                time,
-                z,
-            });
-        }
-    }
-
-    let position = position_hint?;
-    let rest = stem.strip_prefix("img_")?;
-    let first_sep = rest.find('_')?;
-    let last_sep = rest.rfind('_')?;
-    if first_sep == last_sep {
-        return None;
-    }
-
-    let time = rest[..first_sep].parse().ok()?;
-    let channel = &rest[first_sep + 1..last_sep];
-    if channel.is_empty() {
-        return None;
-    }
-    let z = rest[last_sep + 1..].parse().ok()?;
-
-    Some(ParsedSourceImageName {
-        channel: ParsedSourceChannel::Named(channel.to_string()),
-        position,
-        time,
-        z,
-    })
-}
 
 pub fn workspace_bbox_csv_path(root: &str, pos: u32) -> PathBuf {
     Path::new(root).join("bbox").join(format!("Pos{pos}.csv"))
@@ -237,15 +158,6 @@ pub fn workspace_bbox_csv_path(root: &str, pos: u32) -> PathBuf {
 pub fn workspace_align_json_path(root: &str, pos: u32) -> PathBuf {
     Path::new(root).join("align").join(format!("Pos{pos}.json"))
 }
-
-pub fn workspace_roi_pos_dir_path(root: &str, pos: u32) -> PathBuf {
-    Path::new(root).join("roi").join(format!("Pos{pos}"))
-}
-
-pub fn workspace_roi_tiff_path(root: &str, pos: u32, roi: u32) -> PathBuf {
-    workspace_roi_pos_dir_path(root, pos).join(format!("Roi{roi}.tif"))
-}
-
 
 pub fn dimension_size(sizes: &HashMap<String, usize>, key: &str) -> usize {
     sizes.get(key).copied().unwrap_or(1)
@@ -266,46 +178,3 @@ pub fn validate_request_index(label: &str, index: u32, size: usize) -> Result<us
     Ok(index)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_source_image_name_supports_legacy_tiff_pattern() {
-        let parsed = parse_source_image_name("img_channel1_position18_time7_z2.tif", None)
-            .expect("legacy source image name");
-
-        assert!(matches!(parsed.channel, ParsedSourceChannel::Numeric(1)));
-        assert_eq!(parsed.position, 18);
-        assert_eq!(parsed.time, 7);
-        assert_eq!(parsed.z, 2);
-    }
-
-    #[test]
-    fn parse_source_image_name_supports_named_jpg_pattern() {
-        let parsed = parse_source_image_name("img_000000123_Durchlicht_007.jpg", Some(18))
-            .expect("named jpg source image");
-
-        assert!(matches!(
-            parsed.channel,
-            ParsedSourceChannel::Named(ref name) if name == "Durchlicht"
-        ));
-        assert_eq!(parsed.position, 18);
-        assert_eq!(parsed.time, 123);
-        assert_eq!(parsed.z, 7);
-    }
-
-    #[test]
-    fn parse_source_image_name_supports_channel_names_with_underscores() {
-        let parsed =
-            parse_source_image_name("img_000000123_Tex_Red_007.png", Some(4)).expect("png source");
-
-        assert!(matches!(
-            parsed.channel,
-            ParsedSourceChannel::Named(ref name) if name == "Tex_Red"
-        ));
-        assert_eq!(parsed.position, 4);
-        assert_eq!(parsed.time, 123);
-        assert_eq!(parsed.z, 7);
-    }
-}

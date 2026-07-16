@@ -33,16 +33,6 @@ export default function ViewerApp({ dataPort, hostPort }: ViewerAppProps) {
     openHostPicker("workspace", "Workspace folder");
   };
 
-  const handlePickTif = () => {
-    if (!workspacePath) return;
-    openHostPicker("tif_dir", "TIFF image folder");
-  };
-
-  const handlePickJpg = () => {
-    if (!workspacePath) return;
-    openHostPicker("jpg_dir", "JPEG / PNG image folder");
-  };
-
   const handlePickNd2 = () => {
     if (!workspacePath) return;
     openHostPicker("nd2_file", "ND2 file");
@@ -60,14 +50,9 @@ export default function ViewerApp({ dataPort, hostPort }: ViewerAppProps) {
   };
 
   const applyHostPickDirectory = (path: string) => {
-    const mode = pickerModeRef.current;
-    if (mode === "workspace") {
+    if (pickerModeRef.current === "workspace") {
       setWorkspacePath(path);
-      return;
     }
-    if (!workspacePath) return;
-    if (mode === "tif_dir") setSource({ kind: "tif", path });
-    if (mode === "jpg_dir") setSource({ kind: "jpg", path });
   };
 
   const workspace = (
@@ -77,8 +62,6 @@ export default function ViewerApp({ dataPort, hostPort }: ViewerAppProps) {
       source={source}
       backend={dataPort}
       onPickWorkspace={handlePickWorkspace}
-      onOpenTif={handlePickTif}
-      onOpenJpg={handlePickJpg}
       onOpenNd2={handlePickNd2}
       onOpenCzi={handlePickCzi}
       onClearSource={() => setSource(null)}
