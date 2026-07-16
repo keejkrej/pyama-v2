@@ -3,7 +3,7 @@
 Desktop app and Python analysis package for microscopy ROI workflows.
 
 - `apps/pyama`: Tauri desktop app (`src/` frontend, `src-tauri/` Rust backend)
-- `src/pyama`: Python package for ROI crop, slide mapping, segmentation, timeseries, AUC, and fitting (driven from `notebooks/analyze.ipynb`)
+- `src/pyama`: Python package for ROI crop, slide mapping, segmentation, timeseries, AUC, and fitting (driven from `notebooks/crop.ipynb` and `notebooks/analyze.ipynb`)
 
 ## Tasks
 
@@ -26,9 +26,10 @@ The packaged `pyama` binary:
 
 ## Python analysis
 
-Experiment configuration lives in a Jupyter notebook.
+Experiment configuration lives in Jupyter notebooks.
 
-Pipeline: `crop` → `segment` → `timeseries` → `plot-timeseries` → `auc` → `plot-auc` → `fit` → `plot-fit`
+1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/`
+2. **Analyze** (`notebooks/analyze.ipynb`): `segment` → `timeseries` → `plot-timeseries` → `auc` → `plot-auc` → `fit` → `plot-fit`
 
 ### Install
 
@@ -39,7 +40,9 @@ Pipeline: `crop` → `segment` → `timeseries` → `plot-timeseries` → `auc` 
 uv sync --extra notebook
 ```
 
-### Run analysis
+### Run notebooks
 
 - macOS / Linux: `bash scripts/notebook.sh`
 - Windows: `.\scripts\notebook.ps1`
+
+Opens Jupyter on the `notebooks/` folder (`crop.ipynb`, `analyze.ipynb`).

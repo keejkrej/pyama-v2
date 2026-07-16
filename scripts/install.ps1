@@ -80,7 +80,7 @@ try {
 
     Write-Host "Done."
     Write-Host ""
-    Write-Host "Start the analysis notebook with:"
+    Write-Host "Start Jupyter on notebooks/ with:"
     Write-Host "  .\scripts\notebook.ps1"
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red

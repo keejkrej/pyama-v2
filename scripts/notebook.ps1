@@ -1,4 +1,4 @@
-# Start Jupyter with notebooks/analyze.ipynb
+# Start Jupyter in the notebooks/ folder
 # Run from repo: scripts live under scripts/; run from bundle: same folder as pyproject.toml and .uv/
 
 Set-StrictMode -Version Latest
@@ -20,16 +20,16 @@ if (Test-Path -LiteralPath $BundledUv) {
     exit 1
 }
 
-$Notebook = Join-Path $RepoRoot (Join-Path "notebooks" "analyze.ipynb")
-if (-not (Test-Path -LiteralPath $Notebook)) {
-    Write-Host "Notebook not found: $Notebook" -ForegroundColor Red
+$NotebooksDir = Join-Path $RepoRoot "notebooks"
+if (-not (Test-Path -LiteralPath $NotebooksDir)) {
+    Write-Host "Notebooks folder not found: $NotebooksDir" -ForegroundColor Red
     exit 1
 }
 
 Push-Location $RepoRoot
 try {
-    Write-Host "Starting Jupyter: $Notebook" -ForegroundColor Cyan
-    & $UvExe run --python 3.12 --extra notebook jupyter notebook $Notebook
+    Write-Host "Starting Jupyter in: $NotebooksDir" -ForegroundColor Cyan
+    & $UvExe run --python 3.12 --extra notebook jupyter notebook $NotebooksDir
     exit [int]$LASTEXITCODE
 } finally {
     Pop-Location

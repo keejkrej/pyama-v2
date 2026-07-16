@@ -57,5 +57,5 @@ echo "Installing package..."
 
 echo "Done."
 echo ""
-echo "Start the analysis notebook with:"
+echo "Start Jupyter on notebooks/ with:"
 echo "  bash scripts/notebook.sh"

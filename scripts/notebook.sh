@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Start Jupyter with notebooks/analyze.ipynb
-# Dev: from repo root, run: bash scripts/notebook.sh
-# Prod (pyama.zip): run from extracted bundle root after install.sh
+# Start Jupyter in the notebooks/ folder
+# Dev: from repo root. Prod (pyama.zip): run from extracted bundle root after install.sh
 
 set -euo pipefail
 
@@ -26,11 +25,11 @@ else
   exit 1
 fi
 
-NOTEBOOK="$REPO_ROOT/notebooks/analyze.ipynb"
-if [[ ! -f "$NOTEBOOK" ]]; then
-  echo "Notebook not found: $NOTEBOOK" >&2
+NOTEBOOKS_DIR="$REPO_ROOT/notebooks"
+if [[ ! -d "$NOTEBOOKS_DIR" ]]; then
+  echo "Notebooks folder not found: $NOTEBOOKS_DIR" >&2
   exit 1
 fi
 
 cd "$REPO_ROOT"
-exec "$UV_EXE" run --python 3.12 --extra notebook jupyter notebook "$NOTEBOOK"
+exec "$UV_EXE" run --python 3.12 --extra notebook jupyter notebook "$NOTEBOOKS_DIR"
