@@ -4,14 +4,11 @@ import { useShallow } from "zustand/react/shallow";
 
 import type {
   AutoExcludePreviewRequest,
-  ContrastWindow,
-  FrameResult,
   DataPort,
   Source,
 } from "@/lib/contracts";
 import {
   buildBboxCsv,
-  clamp,
   collectEdgeCells,
   countVisibleCells,
   enumerateVisibleGridCells,
@@ -25,11 +22,9 @@ import {
   scoreDomainForPreview,
 } from "@/components/AutoExclude";
 import CanvasSurface from "@/components/CanvasSurface";
-import {
-  AppSlider,
-} from "@/components/Controls";
 import { FrameNavigation } from "@/components/FrameNavigation";
 import { GridSidebar } from "@/components/GridSidebar";
+import { IntensitySidebar } from "@/components/IntensitySidebar";
 import Navbar from "@/components/Navbar";
 import { SelectionSidebar } from "@/components/SelectionSidebar";
 import {
@@ -38,19 +33,17 @@ import {
   SidebarValue,
 } from "@/components/sidebar";
 import { Button } from "@/components/ui";
-import { contrastWindowForFrame } from "@/hooks/frameContrast";
 import { useGridCanvasInteraction } from "@/hooks/useGridCanvasInteraction";
 import { useSourceFrameLoad } from "@/hooks/useSourceFrameLoad";
 import { useWorkspaceScanSync } from "@/hooks/useWorkspaceScanSync";
 import { toErrorMessage } from "@/lib/errors";
+import { FrameCache } from "@/lib/frameCache";
 import {
   useAutoExcludePreviewQuery,
   useSaveBboxMutation,
 } from "@/lib/query";
 import {
   excludeCells,
-  patchViewState,
-  reloadAutoContrast,
   resetExcludedCells,
   setSaving,
   setSelectionMode,
@@ -68,42 +61,8 @@ export interface WorkspaceProps {
   onClearSource: () => void;
 }
 
-interface CachedFrame {
-  frame: FrameResult;
-}
-
 function gridCellCoordKey(cell: GridCellCoord): string {
   return `${cell.i}:${cell.j}`;
-}
-
-class FrameCache {
-  private readonly limit: number;
-
-  private readonly map = new Map<string, CachedFrame>();
-
-  constructor(limit = 12) {
-    this.limit = limit;
-  }
-
-  get(key: string): CachedFrame | undefined {
-    const found = this.map.get(key);
-    if (!found) return undefined;
-    this.map.delete(key);
-    this.map.set(key, found);
-    return found;
-  }
-
-  set(key: string, value: CachedFrame): void {
-    if (this.map.has(key)) {
-      this.map.delete(key);
-    }
-    this.map.set(key, value);
-    while (this.map.size > this.limit) {
-      const first = this.map.keys().next().value;
-      if (!first) break;
-      this.map.delete(first);
-    }
-  }
 }
 
 export default function Workspace({
@@ -187,22 +146,6 @@ export default function Workspace({
 
   const hasScan = !!scan && scan.positions.length > 0;
   const controlsDisabled = !hasScan || !selection;
-  const contrastDomain = useMemo(() => contrastWindowForFrame(frame), [frame]);
-  const contrastMinSliderMax = Math.max(contrastDomain.min + 1, contrastDomain.max) - 1;
-  const contrastMaxSliderMin = Math.min(contrastDomain.max - 1, contrastDomain.min + 1);
-  const [contrastDraft, setContrastDraft] = useState<ContrastWindow | null>(null);
-
-  useEffect(() => {
-    setContrastDraft({
-      min: contrastMin,
-      max: contrastMax,
-    });
-  }, [contrastMax, contrastMin]);
-
-  const displayedContrast = contrastDraft ?? {
-    min: contrastMin,
-    max: contrastMax,
-  };
 
   useEffect(() => {
     if (!grid.enabled || !frame) {
@@ -383,88 +326,18 @@ export default function Workspace({
           <div className="grid h-full min-h-0 min-w-0 grid-cols-[18rem_minmax(0,1fr)_18rem] items-stretch">
             <aside className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden divide-y divide-border border-r border-border px-5 py-4">
               <FrameNavigation />
-
-              <SidebarSection
-                title="Intensity"
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!frame}
-                    className="h-7 px-2.5 text-xs"
-                    onClick={reloadAutoContrast}
-                  >
-                    Auto Range
-                  </Button>
-                }
-              >
-                <SidebarField label="Min Intensity" hint={String(displayedContrast.min)}>
-                  <AppSlider
-                    value={displayedContrast.min}
-                    min={contrastDomain.min}
-                    max={contrastMinSliderMax}
-                    step={1}
-                    disabled={!frame}
-                    onChange={(value) => {
-                      setContrastDraft((current) => ({
-                        min: clamp(
-                          Math.round(value),
-                          contrastDomain.min,
-                          Math.min(contrastMinSliderMax, (current ?? displayedContrast).max - 1),
-                        ),
-                        max: (current ?? displayedContrast).max,
-                      }));
-                    }}
-                    onCommit={(value) => {
-                      patchViewState({
-                        contrastMode: "manual",
-                        contrastMin: clamp(
-                          Math.round(value),
-                          contrastDomain.min,
-                          Math.min(contrastMinSliderMax, displayedContrast.max - 1),
-                        ),
-                      });
-                    }}
-                  />
-                </SidebarField>
-                <SidebarField label="Max Intensity" hint={String(displayedContrast.max)}>
-                  <AppSlider
-                    value={displayedContrast.max}
-                    min={contrastMaxSliderMin}
-                    max={contrastDomain.max}
-                    step={1}
-                    disabled={!frame}
-                    onChange={(value) => {
-                      setContrastDraft((current) => ({
-                        min: (current ?? displayedContrast).min,
-                        max: clamp(
-                          Math.round(value),
-                          Math.max(contrastMaxSliderMin, (current ?? displayedContrast).min + 1),
-                          contrastDomain.max,
-                        ),
-                      }));
-                    }}
-                    onCommit={(value) => {
-                      patchViewState({
-                        contrastMode: "manual",
-                        contrastMax: clamp(
-                          Math.round(value),
-                          Math.max(contrastMaxSliderMin, displayedContrast.min + 1),
-                          contrastDomain.max,
-                        ),
-                      });
-                    }}
-                  />
-                </SidebarField>
-              </SidebarSection>
-
+              <IntensitySidebar
+                frame={frame}
+                contrastMin={contrastMin}
+                contrastMax={contrastMax}
+              />
               <SidebarSection title="Outputs">
                 <SidebarField label="Bounding Box CSV">
                   <SidebarValue monospace>
                     {bboxPath}
                   </SidebarValue>
                 </SidebarField>
-                <SidebarField label="State JSON">
+                <SidebarField label="Align State JSON">
                   <SidebarValue monospace>
                     {stateJsonPath}
                   </SidebarValue>

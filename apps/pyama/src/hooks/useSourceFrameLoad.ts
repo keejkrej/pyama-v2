@@ -2,14 +2,9 @@ import { Effect, Exit } from "effect";
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
 
-import type { FrameResult, DataPort, Selection, Source } from "@/lib/contracts";
-
-/** LRU or plain cache used by the workspace (see `FrameCache` in Workspace). */
-export interface FrameResultCache {
-  get(key: string): { frame: FrameResult } | undefined;
-  set(key: string, value: { frame: FrameResult }): void;
-}
+import type { DataPort, Selection, Source } from "@/lib/contracts";
 import { makeFrameKey } from "@/lib/core";
+import type { FrameCache } from "@/lib/frameCache";
 
 import { loadFrameEffect } from "@/lib/effects";
 import { toErrorMessage } from "@/lib/errors";
@@ -31,7 +26,7 @@ export interface UseSourceFrameLoadArgs {
    * When set, consult and populate this cache (workspace).
    * Optional for simpler loaders.
    */
-  frameCacheRef?: MutableRefObject<FrameResultCache>;
+  frameCacheRef?: MutableRefObject<Pick<FrameCache, "get" | "set">>;
 }
 
 /**
