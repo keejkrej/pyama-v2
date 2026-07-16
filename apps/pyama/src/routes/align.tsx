@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ViewerApp } from "lisca/viewer/react";
+import { ViewerApp } from "@/viewer/react";
 
 export const Route = createFileRoute("/align")({
   component: AlignRoute,
@@ -7,16 +7,6 @@ export const Route = createFileRoute("/align")({
 
 function AlignRoute() {
   const { dataPort, hostPort } = Route.useRouteContext();
-  const navigate = Route.useNavigate();
 
-  return (
-    <ViewerApp
-      dataPort={dataPort}
-      hostPort={hostPort}
-      mode="align"
-      onModeChange={(mode) => {
-        void navigate({ to: mode === "roi" ? "/roi" : "/align" });
-      }}
-    />
-  );
+  return <ViewerApp dataPort={dataPort} hostPort={hostPort} />;
 }

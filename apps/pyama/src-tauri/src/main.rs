@@ -7,20 +7,14 @@ use std::path::Path;
 use std::{env, net::TcpListener, thread};
 
 use clap::Parser;
-use lisca::host_fs;
-use lisca::viewer::backend::{
+use pyama::host_fs;
+use pyama::viewer::backend::{
     auto_exclude_preview as run_auto_exclude_preview,
     list_saved_bbox_positions as run_list_saved_bbox_positions,
-    load_align_state as run_load_align_state, load_annotation_labels as run_load_annotation_labels,
-    load_frame_payload, load_roi_frame_annotation as run_load_roi_frame_annotation,
-    load_roi_frame_payload, save_annotation_labels as run_save_annotation_labels,
-    save_bbox as run_save_bbox, save_roi_frame_annotation as run_save_roi_frame_annotation,
-    scan_roi_workspace as run_scan_roi_workspace, scan_source as run_scan_source, AnnotationLabel,
-    AutoExcludePreviewRequest, AutoExcludePreviewResponse, ContrastWindow, FramePayload,
-    FrameRequest, LoadedRoiFrameAnnotation, RoiFrameAnnotation,
-    RoiFrameAnnotationPayload as BackendRoiFrameAnnotationPayload, RoiFrameRequest,
-    RoiWorkspaceScan,
-    SaveBboxResponse, SavedAlignState, ViewerSource, WorkspaceScan,
+    load_align_state as run_load_align_state, load_frame_payload, save_bbox as run_save_bbox,
+    scan_source as run_scan_source, AutoExcludePreviewRequest, AutoExcludePreviewResponse,
+    ContrastWindow, FramePayload, FrameRequest, SaveBboxResponse, SavedAlignState, ViewerSource,
+    WorkspaceScan,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
@@ -83,42 +77,6 @@ struct AutoExcludePreviewPayload {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct LabelListPayload {
-    workspace_path: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LabelSavePayload {
-    workspace_path: String,
-    labels: Vec<AnnotationLabel>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RoiFramePayload {
-    workspace_path: String,
-    request: RoiFrameRequest,
-    contrast: Option<ContrastWindow>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RoiFrameAnnotationRequestPayload {
-    workspace_path: String,
-    request: RoiFrameRequest,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SaveRoiFramePayload {
-    workspace_path: String,
-    request: RoiFrameRequest,
-    annotation: BackendRoiFrameAnnotationPayload,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct SaveBboxPayload {
     workspace_path: String,
     pos: u32,
@@ -139,8 +97,8 @@ struct ReadTextFilePayload {
 }
 
 fn websocket_listen_address() -> String {
-    let configured = env::var("LISCA_WEBSOCKET_URL")
-        .or_else(|_| env::var("LISCA_WEBSOCKET_ADDR"))
+    let configured = env::var("PYAMA_WEBSOCKET_URL")
+        .or_else(|_| env::var("PYAMA_WEBSOCKET_ADDR"))
         .unwrap_or_else(|_| WEBSOCKET_DEFAULT_ADDR.to_string());
 
     let trimmed = configured.trim();
@@ -304,10 +262,6 @@ fn handle_websocket_message(
                 load_frame(payload.source, payload.request, payload.contrast)?,
             )?
         }
-        "scan_roi_workspace" => {
-            let payload: WorkspacePayload = parse_payload(&request)?;
-            emit_result(socket, request.id, scan_roi_workspace(payload.workspace_path)?)?
-        }
         "list_saved_bbox_positions" => {
             let payload: WorkspacePayload = parse_payload(&request)?;
             emit_result(
@@ -327,46 +281,6 @@ fn handle_websocket_message(
         "auto_exclude_preview" => {
             let payload: AutoExcludePreviewPayload = parse_payload(&request)?;
             emit_result(socket, request.id, auto_exclude_preview(payload.request)?)?
-        }
-        "load_annotation_labels" => {
-            let payload: LabelListPayload = parse_payload(&request)?;
-            emit_result(socket, request.id, load_annotation_labels(payload.workspace_path)?)?
-        }
-        "save_annotation_labels" => {
-            let payload: LabelSavePayload = parse_payload(&request)?;
-            emit_result(
-                socket,
-                request.id,
-                save_annotation_labels(payload.workspace_path, payload.labels)?,
-            )?
-        }
-        "load_roi_frame" => {
-            let payload: RoiFramePayload = parse_payload(&request)?;
-            emit_result(
-                socket,
-                request.id,
-                load_roi_frame(payload.workspace_path, payload.request, payload.contrast)?,
-            )?
-        }
-        "load_roi_frame_annotation" => {
-            let payload: RoiFrameAnnotationRequestPayload = parse_payload(&request)?;
-            emit_result(
-                socket,
-                request.id,
-                load_roi_frame_annotation(payload.workspace_path, payload.request)?,
-            )?
-        }
-        "save_roi_frame_annotation" => {
-            let payload: SaveRoiFramePayload = parse_payload(&request)?;
-            emit_result(
-                socket,
-                request.id,
-                save_roi_frame_annotation(
-                    payload.workspace_path,
-                    payload.request,
-                    payload.annotation,
-                )?,
-            )?
         }
         "save_bbox" => {
             let payload: SaveBboxPayload = parse_payload(&request)?;
@@ -403,10 +317,6 @@ fn load_frame(
     load_frame_payload(source, request, contrast)
 }
 
-#[command]
-fn scan_roi_workspace(workspace_path: String) -> Result<RoiWorkspaceScan, String> {
-    run_scan_roi_workspace(workspace_path)
-}
 
 #[command]
 fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, String> {
@@ -425,44 +335,10 @@ fn auto_exclude_preview(
     run_auto_exclude_preview(request)
 }
 
-#[command]
-fn load_annotation_labels(workspace_path: String) -> Result<Vec<AnnotationLabel>, String> {
-    run_load_annotation_labels(workspace_path)
-}
 
-#[command]
-fn save_annotation_labels(
-    workspace_path: String,
-    labels: Vec<AnnotationLabel>,
-) -> Result<Vec<AnnotationLabel>, String> {
-    run_save_annotation_labels(workspace_path, labels)
-}
 
-#[command]
-fn load_roi_frame(
-    workspace_path: String,
-    request: RoiFrameRequest,
-    contrast: Option<ContrastWindow>,
-) -> Result<FramePayload, String> {
-    load_roi_frame_payload(workspace_path, request, contrast)
-}
 
-#[command]
-fn load_roi_frame_annotation(
-    workspace_path: String,
-    request: RoiFrameRequest,
-) -> Result<LoadedRoiFrameAnnotation, String> {
-    run_load_roi_frame_annotation(workspace_path, request)
-}
 
-#[command]
-fn save_roi_frame_annotation(
-    workspace_path: String,
-    request: RoiFrameRequest,
-    annotation: BackendRoiFrameAnnotationPayload,
-) -> Result<RoiFrameAnnotation, String> {
-    run_save_roi_frame_annotation(workspace_path, request, annotation)
-}
 
 #[command]
 fn save_bbox(
@@ -484,7 +360,7 @@ fn main() {
             let port = server.port.unwrap_or(3412);
             let addr = server_listen_addr(port, server.lan);
             spawn_websocket_server(addr.clone());
-            eprintln!("LISCA viewer (headless). Ctrl+C to stop. Listening on {addr}");
+            eprintln!("Pyama viewer (headless). Ctrl+C to stop. Listening on {addr}");
             thread::park();
             return;
         }
@@ -497,15 +373,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             scan_source,
             load_frame,
-            scan_roi_workspace,
             list_saved_bbox_positions,
             load_align_state,
             auto_exclude_preview,
-            load_annotation_labels,
-            save_annotation_labels,
-            load_roi_frame,
-            load_roi_frame_annotation,
-            save_roi_frame_annotation,
             save_bbox
         ])
 

@@ -1,9 +1,9 @@
-//! CLI for the LISCA viewer: `server` subcommand.
+//! CLI for the Pyama viewer: `server` subcommand.
 
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(version, about = "LISCA desktop shell")]
+#[command(version, about = "Pyama desktop shell")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<CliCommand>,

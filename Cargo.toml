@@ -1,9 +1,3 @@
 [workspace]
-members = [
-  "packages/lisca/rust",
-  "apps/pyama/src-tauri",
-]
+members = ["apps/pyama/src-tauri"]
 resolver = "2"
-
-[workspace.dependencies]
-lisca = { path = "packages/lisca/rust", default-features = false }

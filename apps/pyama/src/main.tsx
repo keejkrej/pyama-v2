@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { LiscaQueryProvider } from "lisca/shared/query";
+import { QueryProvider } from "@/shared/query";
 import "./fonts.css";
-import "lisca/viewer/styles.css";
+import "@/viewer/react/app/viewer.css";
 
 import App from "./App";
 
@@ -11,8 +11,8 @@ document.documentElement.classList.add("dark");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <LiscaQueryProvider>
+    <QueryProvider>
       <App />
-    </LiscaQueryProvider>
+    </QueryProvider>
   </React.StrictMode>,
 );

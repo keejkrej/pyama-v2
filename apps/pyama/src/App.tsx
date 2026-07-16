@@ -3,13 +3,13 @@ import {
   createHashHistory,
   createRouter,
 } from "@tanstack/react-router";
-import { createLiscaHostPorts } from "lisca/viewer/host";
-import type { ViewerDataPort, ViewerHostPort } from "lisca/shared/contracts";
+import { createHostPorts } from "@/viewer/host";
+import type { ViewerDataPort, ViewerHostPort } from "@/shared/contracts";
 import { useMemo } from "react";
 
 import { routeTree } from "./routeTree.gen";
 
-const ports = createLiscaHostPorts();
+const ports = createHostPorts();
 
 export interface ViewerRouterContext {
   dataPort: ViewerDataPort;

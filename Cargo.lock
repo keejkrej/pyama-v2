@@ -1927,23 +1927,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lisca"
-version = "0.2.0"
-dependencies = [
- "base64 0.22.1",
- "csv",
- "czisdk-rs",
- "image",
- "nd2sdk-rs",
- "png 0.17.16",
- "serde",
- "serde_json",
- "tiff",
- "time",
- "walkdir",
-]
-
-[[package]]
 name = "litemap"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2725,13 +2708,20 @@ checksum = "e0c5ccf5294c6ccd63a74f1565028353830a9c2f5eb0c682c355c471726a6e3f"
 name = "pyama"
 version = "0.2.0"
 dependencies = [
+ "base64 0.22.1",
  "clap",
- "lisca",
+ "csv",
+ "czisdk-rs",
+ "image",
+ "nd2sdk-rs",
+ "png 0.17.16",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "tiff",
  "tungstenite",
+ "walkdir",
 ]
 
 [[package]]

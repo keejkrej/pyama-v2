@@ -3,13 +3,24 @@ name = "pyama"
 version = "0.2.0"
 edition = "2021"
 
+[[bin]]
+name = "crop-profiler"
+path = "src/bin/crop-profiler.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
+csv = "1.4"
+czi-rs = { package = "czisdk-rs", git = "https://github.com/keejkrej/czisdk-rs" }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+nd2-rs = { package = "nd2sdk-rs", git = "https://github.com/keejkrej/nd2sdk-rs" }
+png = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
-lisca = { workspace = true, features = ["viewer"] }
+tiff = "0.10"
 tungstenite = "0.24"
+walkdir = "2.5"
