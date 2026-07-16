@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import {
-  applySavedState,
+  applyAlignState,
   IDLE_SAVE_STATE,
   resetExcludedCells,
   setWorkspacePath,
@@ -35,7 +35,7 @@ describe("app store exclusion actions", () => {
     expect(appStore.getState().saveState).toEqual(IDLE_SAVE_STATE);
   });
 
-  test("applySavedState replaces the grid and excluded cells for the position", () => {
+  test("applyAlignState replaces the grid and excluded cells for the position", () => {
     appStore.setState({
       ...initialState,
       source: { kind: "nd2", path: "/tmp/source.nd2" },
@@ -58,7 +58,7 @@ describe("app store exclusion actions", () => {
       },
     });
 
-    applySavedState(5, {
+    applyAlignState(5, {
       grid: {
         enabled: true,
         shape: "hex",
@@ -92,7 +92,7 @@ describe("app store exclusion actions", () => {
     });
   });
 
-  test("applySavedState keeps the current grid and clears exclusions when no saved state exists", () => {
+  test("applyAlignState keeps the current grid and clears exclusions when no align state exists", () => {
     appStore.setState({
       ...initialState,
       source: { kind: "nd2", path: "/tmp/source.nd2" },
@@ -114,7 +114,7 @@ describe("app store exclusion actions", () => {
       },
     });
 
-    applySavedState(6, null);
+    applyAlignState(6, null);
 
     expect(appStore.getState().grid).toEqual({
       enabled: true,

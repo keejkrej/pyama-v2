@@ -48,7 +48,7 @@ _Avoid_: ROI file, crop table
 
 **Align state**:
 Per-position Grid plus excluded cells persisted as `align/Pos{n}.json`.
-_Avoid_: SavedState (alone), saved align, session JSON
+_Avoid_: SavedState, SavedAlignState, session JSON
 
 ### Host seam
 

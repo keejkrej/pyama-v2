@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::viewer::domain::{
     parse_bbox_csv_name, workspace_align_json_path, workspace_bbox_csv_path, SaveBboxResponse,
-    SavedAlignState,
+    AlignState,
 };
 
 pub fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, String> {
@@ -36,7 +36,7 @@ pub fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, Str
 pub fn load_align_state(
     workspace_path: String,
     pos: u32,
-) -> Result<Option<SavedAlignState>, String> {
+) -> Result<Option<AlignState>, String> {
     let path = workspace_align_json_path(&workspace_path, pos);
     let bytes = match fs::read(&path) {
         Ok(bytes) => bytes,
@@ -49,7 +49,7 @@ pub fn load_align_state(
         }
     };
 
-    serde_json::from_slice::<SavedAlignState>(&bytes)
+    serde_json::from_slice::<AlignState>(&bytes)
         .map(Some)
         .map_err(|err| format!("{}: {err}", path.display()))
 }
@@ -58,7 +58,7 @@ pub fn save_bbox(
     workspace_path: String,
     pos: u32,
     csv: String,
-    align_state: SavedAlignState,
+    align_state: AlignState,
 ) -> SaveBboxResponse {
     let bbox_target = workspace_bbox_csv_path(&workspace_path, pos);
     let Some(bbox_parent) = bbox_target.parent() else {
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn save_bbox_writes_csv_and_align_state() {
         let root = unique_test_dir("save-bbox");
-        let align_state = SavedAlignState {
+        let align_state = AlignState {
             grid: GridState {
                 enabled: true,
                 shape: GridShape::Hex,

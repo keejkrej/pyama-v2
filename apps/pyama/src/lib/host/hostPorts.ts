@@ -5,7 +5,7 @@ import type {
   FrameResult,
   HostListDirectoryResult,
   LoadFrameOptions,
-  SavedState,
+  AlignState,
   SaveBboxResponse,
   DataPort,
   HostPort,
@@ -355,8 +355,8 @@ export function createHostPorts(options: HostPortsOptions = {}): HostPorts {
       return socket.call<number[]>("list_saved_bbox_positions", { workspacePath });
     },
 
-    loadSavedState(workspacePath: string, pos: number): Promise<SavedState | null> {
-      return socket.call<SavedState | null>("load_align_state", {
+    loadAlignState(workspacePath: string, pos: number): Promise<AlignState | null> {
+      return socket.call<AlignState | null>("load_align_state", {
         workspacePath,
         pos,
       });
@@ -373,15 +373,14 @@ export function createHostPorts(options: HostPortsOptions = {}): HostPorts {
       source: Source,
       pos: number,
       csv: string,
-      savedState: SavedState,
+      alignState: AlignState,
     ): Promise<SaveBboxResponse> {
       return socket.call<SaveBboxResponse>("save_bbox", {
         workspacePath,
         source,
         pos,
         csv,
-        // Wire field name required by the Rust SaveBboxPayload.
-        alignState: savedState,
+        alignState,
       });
     },
   };

@@ -14,12 +14,9 @@ import {
   clamp,
   collectEdgeCells,
   countVisibleCells,
-  degreesToRadians,
   enumerateVisibleGridCells,
-  radiansToDegrees,
   toggleExcludedCells as toggleExcludedCellCoords,
   type GridCellCoord,
-  type GridShape,
 } from "@/lib/core";
 import { AutoExcludeDialog } from "@/components/AutoExcludeDialog";
 import {
@@ -29,18 +26,15 @@ import {
 } from "@/components/AutoExclude";
 import CanvasSurface from "@/components/CanvasSurface";
 import {
-  AppSelect,
   AppSlider,
-  NumberInput,
-  type SelectOption,
 } from "@/components/Controls";
 import { FrameNavigation } from "@/components/FrameNavigation";
+import { GridSidebar } from "@/components/GridSidebar";
 import Navbar from "@/components/Navbar";
+import { SelectionSidebar } from "@/components/SelectionSidebar";
 import {
   SidebarField,
   SidebarSection,
-  SidebarSegmentedToggle,
-  SidebarStat,
   SidebarValue,
 } from "@/components/sidebar";
 import { Button } from "@/components/ui";
@@ -58,8 +52,6 @@ import {
   patchViewState,
   reloadAutoContrast,
   resetExcludedCells,
-  resetGrid,
-  setGrid,
   setSaving,
   setSelectionMode,
   appStore,
@@ -199,15 +191,6 @@ export default function Workspace({
   const contrastMinSliderMax = Math.max(contrastDomain.min + 1, contrastDomain.max) - 1;
   const contrastMaxSliderMin = Math.min(contrastDomain.max - 1, contrastDomain.min + 1);
   const [contrastDraft, setContrastDraft] = useState<ContrastWindow | null>(null);
-  const gridDegrees = radiansToDegrees(grid.rotation);
-  const minGridSpacing = Math.min(grid.cellWidth, grid.cellHeight);
-  const shapeOptions = useMemo<SelectOption<GridShape>[]>(
-    () => [
-      { label: "Square", value: "square" },
-      { label: "Hex", value: "hex" },
-    ],
-    [],
-  );
 
   useEffect(() => {
     setContrastDraft({
@@ -318,7 +301,7 @@ export default function Workspace({
         source,
         pos: selection.pos,
         csv: buildBboxCsv(frame, grid, currentPositionExcludedCells),
-        savedState: {
+        alignState: {
           grid,
           excludedCells: currentPositionExcludedCells,
         },
@@ -522,214 +505,23 @@ export default function Workspace({
             </section>
 
             <aside className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden divide-y divide-border border-l border-border px-5 py-4">
-              <SidebarSection
-                title="Grid"
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2.5 text-xs"
-                    disabled={controlsDisabled}
-                    onClick={resetGrid}
-                  >
-                    Reset
-                  </Button>
-                }
-              >
-                <SidebarField label="Overlay">
-                  <SidebarSegmentedToggle
-                    value={grid.enabled ? "visible" : "hidden"}
-                    options={[
-                      { label: "Hidden", value: "hidden" },
-                      { label: "Visible", value: "visible" },
-                    ]}
-                    compact
-                    disabled={controlsDisabled}
-                    onChange={(value) =>
-                      setGrid((current) => ({ ...current, enabled: value === "visible" }))
-                    }
-                  />
-                </SidebarField>
-                <SidebarField label="Grid Shape">
-                  <AppSelect
-                    value={grid.shape}
-                    options={shapeOptions}
-                    disabled={controlsDisabled}
-                    onChange={(value) => setGrid((current) => ({ ...current, shape: value }))}
-                  />
-                </SidebarField>
-
-                <SidebarField label="Rotation" hint={`${gridDegrees.toFixed(1)}°`}>
-                  <AppSlider
-                    value={gridDegrees}
-                    min={-180}
-                    max={180}
-                    step={0.1}
-                    disabled={controlsDisabled}
-                    onChange={(value) =>
-                      setGrid((current) => ({
-                        ...current,
-                        rotation: degreesToRadians(value),
-                      }))
-                    }
-                  />
-                </SidebarField>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <SidebarField label="Pitch A">
-                    <NumberInput
-                      value={grid.spacingA}
-                      min={minGridSpacing}
-                      disabled={controlsDisabled}
-                      onChange={(value) =>
-                        setGrid((current) => ({
-                          ...current,
-                          spacingA: Number.isFinite(value) && value > 0 ? value : 1,
-                        }))
-                      }
-                    />
-                  </SidebarField>
-                  <SidebarField label="Pitch B">
-                    <NumberInput
-                      value={grid.spacingB}
-                      min={minGridSpacing}
-                      disabled={controlsDisabled}
-                      onChange={(value) =>
-                        setGrid((current) => ({
-                          ...current,
-                          spacingB: Number.isFinite(value) && value > 0 ? value : 1,
-                        }))
-                      }
-                    />
-                  </SidebarField>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <SidebarField label="Cell Width">
-                    <NumberInput
-                      value={grid.cellWidth}
-                      disabled={controlsDisabled}
-                      onChange={(value) =>
-                        setGrid((current) => ({
-                          ...current,
-                          cellWidth: Number.isFinite(value) && value > 0 ? value : 1,
-                        }))
-                      }
-                    />
-                  </SidebarField>
-                  <SidebarField label="Cell Height">
-                    <NumberInput
-                      value={grid.cellHeight}
-                      disabled={controlsDisabled}
-                      onChange={(value) =>
-                        setGrid((current) => ({
-                          ...current,
-                          cellHeight: Number.isFinite(value) && value > 0 ? value : 1,
-                        }))
-                      }
-                    />
-                  </SidebarField>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <SidebarField label="Offset X">
-                    <NumberInput
-                      value={grid.tx}
-                      disabled={controlsDisabled}
-                      step="0.1"
-                      onChange={(value) =>
-                        setGrid((current) => ({ ...current, tx: Number.isFinite(value) ? value : 0 }))
-                      }
-                    />
-                  </SidebarField>
-                  <SidebarField label="Offset Y">
-                    <NumberInput
-                      value={grid.ty}
-                      disabled={controlsDisabled}
-                      step="0.1"
-                      onChange={(value) =>
-                        setGrid((current) => ({ ...current, ty: Number.isFinite(value) ? value : 0 }))
-                      }
-                    />
-                  </SidebarField>
-                </div>
-
-                <SidebarField label="Overlay" hint={grid.opacity.toFixed(2)}>
-                  <AppSlider
-                    value={grid.opacity}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    disabled={controlsDisabled}
-                    onChange={(value) =>
-                      setGrid((current) => ({ ...current, opacity: clamp(value, 0, 1) }))
-                    }
-                  />
-                </SidebarField>
-              </SidebarSection>
-
-              <SidebarSection title="Selection">
-                <SidebarField label="Mode">
-                  <SidebarSegmentedToggle
-                    value={selectionMode ? "edit" : "view"}
-                    options={[
-                      { label: "View", value: "view" },
-                      { label: "Edit", value: "edit" },
-                    ]}
-                    compact
-                    disabled={controlsDisabled || !frame || !grid.enabled}
-                    onChange={(value) => setSelectionMode(value === "edit")}
-                  />
-                </SidebarField>
-                <div className="grid grid-cols-2 gap-2">
-                  <SidebarField label="Included Cells">
-                    <SidebarStat value={includedVisibleCount} />
-                  </SidebarField>
-                  <SidebarField label="Excluded Cells">
-                    <SidebarStat value={excludedVisibleCount} />
-                  </SidebarField>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 justify-center px-3 text-xs"
-                    disabled={!canResetExcludedCells}
-                    onClick={handleResetExcludedCells}
-                  >
-                    Reset Excluded
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 justify-center px-3 text-xs"
-                    disabled={!canExcludeAllVisibleCells}
-                    onClick={handleExcludeAllVisibleCells}
-                  >
-                    Exclude All
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 justify-center px-3 text-xs"
-                    disabled={!frame || !selection}
-                    onClick={handleExcludeEdgeBboxes}
-                  >
-                    Exclude Edge
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 justify-center px-3 text-xs"
-                    disabled={!canOpenAutoExclude}
-                    onClick={() => setAutoExcludeOpen(true)}
-                  >
-                    Auto Exclude
-                  </Button>
-                </div>
-              </SidebarSection>
+              <GridSidebar grid={grid} disabled={controlsDisabled} />
+              <SelectionSidebar
+                disabled={controlsDisabled}
+                frameReady={!!frame}
+                gridEnabled={grid.enabled}
+                selectionMode={selectionMode}
+                includedVisibleCount={includedVisibleCount}
+                excludedVisibleCount={excludedVisibleCount}
+                canResetExcludedCells={canResetExcludedCells}
+                canExcludeAllVisibleCells={canExcludeAllVisibleCells}
+                canExcludeEdge={!!frame && !!selection}
+                canOpenAutoExclude={canOpenAutoExclude}
+                onResetExcluded={handleResetExcludedCells}
+                onExcludeAll={handleExcludeAllVisibleCells}
+                onExcludeEdge={handleExcludeEdgeBboxes}
+                onOpenAutoExclude={() => setAutoExcludeOpen(true)}
+              />
             </aside>
           </div>
         </main>

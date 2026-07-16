@@ -10,7 +10,7 @@ import {
 import type {
   AutoExcludePreviewRequest,
   AutoExcludePreviewResponse,
-  SavedState,
+  AlignState,
   SaveBboxResponse,
   DataPort,
   Source,
@@ -19,7 +19,7 @@ import type {
 
 import { queryKeys } from "./queryKeys";
 import {
-  savedStateQueryOptions,
+  alignStateQueryOptions,
   autoExcludePreviewQueryOptions,
   savedBboxPositionsQueryOptions,
   scanSourceQueryOptions,
@@ -86,12 +86,12 @@ export function useSavedBboxPositionsQuery(
   );
 }
 
-export function useSavedStateQuery(
+export function useAlignStateQuery(
   backend: DataPort | null | undefined,
   workspacePath: string | null | undefined,
   pos: number | null | undefined,
   options?: Omit<
-    UseQueryOptions<SavedState | null, Error, SavedState | null, readonly unknown[]>,
+    UseQueryOptions<AlignState | null, Error, AlignState | null, readonly unknown[]>,
     "queryKey" | "queryFn" | "initialData"
   >,
 ) {
@@ -99,7 +99,7 @@ export function useSavedStateQuery(
     !!backend && !!workspacePath && pos != null && !Number.isNaN(pos);
   return useQuery(
     enabledQueryOptions(
-      canQuery ? savedStateQueryOptions(backend, workspacePath, pos) : null,
+      canQuery ? alignStateQueryOptions(backend, workspacePath, pos) : null,
       options,
     ),
   );
@@ -141,15 +141,15 @@ export function useSaveBboxMutation(
       source: Source;
       pos: number;
       csv: string;
-      savedState: SavedState;
+      alignState: AlignState;
     }
   >,
 ) {
   const qc = useQueryClient();
   return useMutation({
     ...options,
-    mutationFn: ({ workspacePath, source, pos, csv, savedState }) =>
-      requireBackend(backend).saveBbox(workspacePath, source, pos, csv, savedState),
+    mutationFn: ({ workspacePath, source, pos, csv, alignState }) =>
+      requireBackend(backend).saveBbox(workspacePath, source, pos, csv, alignState),
     onSuccess: (data, variables, onMutateResult, context) => {
       if (data.ok) {
         qc.setQueryData<number[]>(
@@ -161,8 +161,8 @@ export function useSaveBboxMutation(
           },
         );
         qc.setQueryData(
-          queryKeys.savedState(variables.workspacePath, variables.pos),
-          variables.savedState,
+          queryKeys.alignState(variables.workspacePath, variables.pos),
+          variables.alignState,
         );
       }
       options?.onSuccess?.(data, variables, onMutateResult, context);

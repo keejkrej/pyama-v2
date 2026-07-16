@@ -15,8 +15,8 @@ export const queryKeys = {
   savedBboxPositions: (workspacePath: string) =>
     [...queryKeys.all, "savedBboxPositions", workspacePath] as const,
 
-  savedState: (workspacePath: string, pos: number) =>
-    [...queryKeys.all, "savedState", workspacePath, pos] as const,
+  alignState: (workspacePath: string, pos: number) =>
+    [...queryKeys.all, "alignState", workspacePath, pos] as const,
 
   autoExcludePreview: (request: AutoExcludePreviewRequest) =>
     [

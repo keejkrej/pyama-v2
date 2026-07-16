@@ -13,7 +13,7 @@ use pyama::viewer::backend::{
     list_saved_bbox_positions as run_list_saved_bbox_positions,
     load_align_state as run_load_align_state, load_frame_payload, save_bbox as run_save_bbox,
     scan_source as run_scan_source, AutoExcludePreviewRequest, AutoExcludePreviewResponse,
-    ContrastWindow, FramePayload, FrameRequest, SaveBboxResponse, SavedAlignState, ViewerSource,
+    ContrastWindow, FramePayload, FrameRequest, SaveBboxResponse, AlignState, ViewerSource,
     WorkspaceScan,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -81,7 +81,7 @@ struct SaveBboxPayload {
     workspace_path: String,
     pos: u32,
     csv: String,
-    align_state: SavedAlignState,
+    align_state: AlignState,
 }
 
 #[derive(Deserialize)]
@@ -324,7 +324,7 @@ fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, String>
 }
 
 #[command]
-fn load_align_state(workspace_path: String, pos: u32) -> Result<Option<SavedAlignState>, String> {
+fn load_align_state(workspace_path: String, pos: u32) -> Result<Option<AlignState>, String> {
     run_load_align_state(workspace_path, pos)
 }
 
@@ -345,7 +345,7 @@ fn save_bbox(
     workspace_path: String,
     pos: u32,
     csv: String,
-    align_state: SavedAlignState,
+    align_state: AlignState,
 ) -> SaveBboxResponse {
     run_save_bbox(workspace_path, pos, csv, align_state)
 }

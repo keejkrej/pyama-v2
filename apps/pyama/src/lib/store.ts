@@ -2,7 +2,7 @@ import { createStore } from "zustand/vanilla";
 
 import type {
   FrameResult,
-  SavedState,
+  AlignState,
   Selection,
   Source,
   WorkspaceScan,
@@ -450,17 +450,17 @@ export function resetExcludedCells(position: number) {
   });
 }
 
-export function applySavedState(position: number, savedState: SavedState | null) {
+export function applyAlignState(position: number, alignState: AlignState | null) {
   appStore.setState((state) => {
     const excludedCellsByPosition = replaceExcludedCellsForPosition(
       state.excludedCellsByPosition,
       position,
-      savedState?.excludedCells ?? [],
+      alignState?.excludedCells ?? [],
     );
-    const grid = savedState ? normalizeGridState(savedState.grid) : state.grid;
+    const grid = alignState ? normalizeGridState(alignState.grid) : state.grid;
     const storage = resolveStorage();
 
-    if (savedState) {
+    if (alignState) {
       persistGrid(storage, grid);
     }
     persistExcludedCells(storage, state.source, excludedCellsByPosition);

@@ -6,7 +6,7 @@ use serde::Serialize;
 pub use crate::viewer::domain::{
     AutoExcludeHistogramBin, AutoExcludePreviewCell, AutoExcludePreviewCellScore,
     AutoExcludePreviewRequest, AutoExcludePreviewResponse, ContrastWindow, FrameRequest,
-    SaveBboxResponse, SavedAlignState, ViewerSource, WorkspaceScan,
+    SaveBboxResponse, AlignState, ViewerSource, WorkspaceScan,
 };
 use crate::viewer::image::{self, apply_contrast, auto_contrast, load_frame, RawFrame};
 
@@ -268,7 +268,7 @@ pub fn list_saved_bbox_positions(workspace_path: String) -> Result<Vec<u32>, Str
 pub fn load_align_state(
     workspace_path: String,
     pos: u32,
-) -> Result<Option<SavedAlignState>, String> {
+) -> Result<Option<AlignState>, String> {
     crate::viewer::roi::load_align_state(workspace_path, pos)
 }
 
@@ -276,7 +276,7 @@ pub fn save_bbox(
     workspace_path: String,
     pos: u32,
     csv: String,
-    align_state: SavedAlignState,
+    align_state: AlignState,
 ) -> SaveBboxResponse {
     crate::viewer::roi::save_bbox(workspace_path, pos, csv, align_state)
 }

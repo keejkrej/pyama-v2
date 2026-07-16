@@ -3,7 +3,7 @@ import type { UseQueryOptions } from "@tanstack/react-query";
 import type {
   AutoExcludePreviewRequest,
   AutoExcludePreviewResponse,
-  SavedState,
+  AlignState,
   DataPort,
   Source,
   WorkspaceScan,
@@ -41,15 +41,15 @@ export function savedBboxPositionsQueryOptions(backend: DataPort, workspacePath:
   } satisfies AppQueryOptions<number[]>;
 }
 
-export function savedStateQueryOptions(backend: DataPort, workspacePath: string, pos: number) {
+export function alignStateQueryOptions(backend: DataPort, workspacePath: string, pos: number) {
   return {
-    queryKey: queryKeys.savedState(workspacePath, pos),
+    queryKey: queryKeys.alignState(workspacePath, pos),
     queryFn: ({ signal }) => {
       void signal;
-      return backend.loadSavedState(workspacePath, pos);
+      return backend.loadAlignState(workspacePath, pos);
     },
     staleTime: QUERY_STALE_TIME.metadata,
-  } satisfies AppQueryOptions<SavedState | null>;
+  } satisfies AppQueryOptions<AlignState | null>;
 }
 
 export function autoExcludePreviewQueryOptions(backend: DataPort, request: AutoExcludePreviewRequest) {

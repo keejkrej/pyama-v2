@@ -18,7 +18,7 @@ export type {
   Nd2Source,
   PixelArray,
   PixelType,
-  SavedState,
+  AlignState,
   SaveBboxResponse,
   CanvasStatusMessage,
   CanvasStatusTone,

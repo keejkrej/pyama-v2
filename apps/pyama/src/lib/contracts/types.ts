@@ -62,7 +62,7 @@ export interface GridCellCoord {
   j: number;
 }
 
-export interface SavedState {
+export interface AlignState {
   grid: GridState;
   excludedCells: GridCellCoord[];
 }
@@ -103,14 +103,14 @@ export type HostFilePickerMode =
 
 export interface DataPort extends DataSource {
   listSavedBboxPositions(workspacePath: string): Promise<number[]>;
-  loadSavedState(workspacePath: string, pos: number): Promise<SavedState | null>;
+  loadAlignState(workspacePath: string, pos: number): Promise<AlignState | null>;
   autoExcludePreview(request: AutoExcludePreviewRequest): Promise<AutoExcludePreviewResponse>;
   saveBbox(
     workspacePath: string,
     source: Source,
     pos: number,
     csv: string,
-    savedState: SavedState,
+    alignState: AlignState,
   ): Promise<SaveBboxResponse>;
 }
 

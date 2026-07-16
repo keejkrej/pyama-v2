@@ -10,13 +10,13 @@ export { QueryProvider } from "./QueryProvider";
 export { queryKeys } from "./queryKeys";
 export {
   QUERY_STALE_TIME,
-  savedStateQueryOptions,
+  alignStateQueryOptions,
   autoExcludePreviewQueryOptions,
   savedBboxPositionsQueryOptions,
   scanSourceQueryOptions,
 } from "./queryOptions";
 export {
-  useSavedStateQuery,
+  useAlignStateQuery,
   useAutoExcludePreviewQuery,
   useSaveBboxMutation,
   useSavedBboxPositionsQuery,

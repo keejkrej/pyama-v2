@@ -57,7 +57,7 @@ pub struct GridCellCoord {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SavedAlignState {
+pub struct AlignState {
     pub grid: GridState,
     pub excluded_cells: Vec<GridCellCoord>,
 }

@@ -1,11 +1,11 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import type { SavedState, Source, WorkspaceScan } from "@/lib/contracts";
+import type { AlignState, Source, WorkspaceScan } from "@/lib/contracts";
 import { coerceSelection, createSelection } from "@/lib/core";
 import { toErrorMessage } from "@/lib/errors";
 import {
-  applySavedState,
+  applyAlignState,
   patchViewState,
 } from "@/lib/store";
 import { showErrorToast } from "@/lib/toast";
@@ -48,18 +48,18 @@ export function useSyncScanSourceQuery(
   }, [source, query.data, query.error, query.isError, query.isPending]);
 }
 
-/** Bridges `useSavedStateQuery` into `applySavedState`; optional `onAfterApply` (e.g. Studio enables grid). */
-export function useSyncSavedStateQuery(
+/** Bridges `useAlignStateQuery` into `applyAlignState`; optional `onAfterApply` (e.g. Studio enables grid). */
+export function useSyncAlignStateQuery(
   selectedPos: number | null,
   workspacePath: string | null | undefined,
-  query: UseQueryResult<SavedState | null, Error>,
+  query: UseQueryResult<AlignState | null, Error>,
   onAfterApply?: () => void,
 ) {
   useEffect(() => {
     if (selectedPos == null) return;
 
     if (!workspacePath) {
-      applySavedState(selectedPos, null);
+      applyAlignState(selectedPos, null);
       return;
     }
 
@@ -69,7 +69,7 @@ export function useSyncSavedStateQuery(
     }
 
     if (query.isSuccess) {
-      applySavedState(selectedPos, query.data);
+      applyAlignState(selectedPos, query.data);
       onAfterApply?.();
     }
   }, [onAfterApply, query.data, query.error, query.isError, query.isSuccess, selectedPos, workspacePath]);
