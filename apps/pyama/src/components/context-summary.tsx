@@ -58,7 +58,7 @@ export function ContextSummary({
       <div className="flex min-w-0 items-center gap-2.5">
         <div className="shrink-0 text-muted-foreground/70">{icon}</div>
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/75">
+          <span className="shrink-0 text-sm font-medium text-muted-foreground/75">
             {label}
           </span>
           <p className="truncate text-sm text-foreground/90">{baseName ?? "Not selected"}</p>

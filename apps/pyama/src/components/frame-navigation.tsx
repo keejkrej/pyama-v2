@@ -8,7 +8,7 @@ import {
   findNavigationOptionIndex,
   stepNavigationValue,
   toNavigationOptions,
-} from "@/components/NavigationControls";
+} from "@/components/navigation-controls";
 import { SidebarSection } from "@/components/sidebar";
 
 import { patchViewState, setSelectionKey, setTimeSliderIndex, appStore } from "@/lib/store";

@@ -5,24 +5,20 @@ Desktop app and Python analysis package for microscopy ROI workflows.
 - `apps/pyama`: Tauri desktop app (`src/` frontend, `src-tauri/` Rust backend)
 - `src/pyama`: Python package for ROI crop, slide mapping, segmentation, timeseries, AUC, and fitting (driven from `notebooks/crop.ipynb` and `notebooks/analyze.ipynb`)
 
+Tooling is **Vite+** (`vp` / `vite-plus`).
+
 ## Tasks
 
-- `bun run build` / `bun run build:pyama`: build the desktop app
-- `bun run dev:pyama`: start the desktop app in dev mode
-- `bun run dev:pyama-server`: run the Rust server headless (`cargo watch`; install once with `cargo install cargo-watch`)
-- `bun run dev:pyama-web`: Vite frontend only
-- `bun run test`: run app tests
-- `bun run typecheck`: TypeScript typecheck
-- `bun run check`: JS typechecks and `cargo check --workspace`
+- `vp install`: install JS dependencies
+- `vp run -F pyama dev` / `bun run dev:pyama`: start the desktop app (`tauri dev`)
+- `vp run -F pyama build` / `bun run build:pyama`: build the desktop frontend
+- `vp test` / `bun run test`: run app tests
+- `vp run -r typecheck` / `bun run check`: typecheck JS packages and `cargo check --workspace`
+- `vp run -F pyama check:tauri`: `cargo check` for the Tauri crate
 
-## Desktop app run modes
+## Desktop app
 
-Browser-based dev UI is **`bun run dev:pyama-web`**. Pair with **`bun run dev:pyama-server`** when you want the RPC server without `tauri dev`.
-
-The packaged `pyama` binary:
-
-- **Default**: WebSocket RPC on `127.0.0.1:3412` plus the native window
-- **`server`**: headless WebSocket only (`pyama server [--port <wsPort>] [--lan]`)
+The UI talks to the Rust host via **Tauri IPC** (`invoke`). Use `bun run dev:pyama` for local development.
 
 ## Python analysis
 

@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use crate::viewer::domain::{
+use crate::domain::{
     parse_bbox_csv_name, workspace_align_json_path, workspace_bbox_csv_path, SaveBboxResponse,
     AlignState,
 };
@@ -121,7 +121,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;
-    use crate::viewer::domain::{GridCellCoord, GridShape, GridState};
+    use crate::domain::{GridCellCoord, GridShape, GridState};
 
     fn unique_test_dir(name: &str) -> PathBuf {
         let suffix = SystemTime::now()
@@ -160,10 +160,10 @@ mod tests {
                 tx: 1.5,
                 ty: -2.0,
                 rotation: 0.25,
-                spacing_a: 150.0,
-                spacing_b: 175.0,
-                cell_width: 80.0,
-                cell_height: 90.0,
+                spacing_x: 150.0,
+                spacing_y: 175.0,
+                pattern_w: 80.0,
+                pattern_h: 90.0,
                 opacity: 0.4,
             },
             excluded_cells: vec![GridCellCoord { i: 3, j: 4 }],

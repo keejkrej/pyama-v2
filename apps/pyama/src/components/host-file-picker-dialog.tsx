@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { FileIcon, FolderIcon } from "lucide-react";
 
-import type { HostFilePickerMode, HostFsEntry, HostListDirectoryResult, HostPort } from "@/lib/contracts";
+import type { HostFilePickerMode, HostFsEntry, HostListDirectoryResult, HostApi } from "@/lib/contracts";
 
 import {
   Button,
@@ -41,7 +41,7 @@ function isDirectoryMode(mode: HostFilePickerMode): boolean {
 export type HostFilePickerDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  hostPort: Pick<HostPort, "listDirectory" | "userHomeDirectory">;
+  api: Pick<HostApi, "listDirectory" | "userHomeDirectory">;
   mode: HostFilePickerMode;
   title: string;
   description?: string;
@@ -52,7 +52,7 @@ export type HostFilePickerDialogProps = {
 export default function HostFilePickerDialog({
   open,
   onOpenChange,
-  hostPort,
+  api,
   mode,
   title,
   description,
@@ -69,7 +69,7 @@ export default function HostFilePickerDialog({
       setLoading(true);
       setError(null);
       try {
-        const result = await hostPort.listDirectory(path);
+        const result = await api.listDirectory(path);
         setList(result);
         setSelectedFile(null);
       } catch (cause) {
@@ -79,7 +79,7 @@ export default function HostFilePickerDialog({
         setLoading(false);
       }
     },
-    [hostPort],
+    [api],
   );
 
   useEffect(() => {
@@ -103,7 +103,7 @@ export default function HostFilePickerDialog({
 
   const goHome = async () => {
     try {
-      const home = await hostPort.userHomeDirectory();
+      const home = await api.userHomeDirectory();
       await loadPath(home);
     } catch (cause) {
       setList(null);

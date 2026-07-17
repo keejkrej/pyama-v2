@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import type {
   AutoExcludePreviewRequest,
-  DataPort,
+  HostApi,
   Source,
 } from "@/lib/contracts";
 import {
@@ -15,29 +15,29 @@ import {
   toggleExcludedCells as toggleExcludedCellCoords,
   type GridCellCoord,
 } from "@/lib/core";
-import { AutoExcludeDialog } from "@/components/AutoExcludeDialog";
+import { AutoExcludeDialog } from "@/components/auto-exclude-dialog";
 import {
   autoExcludeCount,
   clampThresholdToDomain,
   scoreDomainForPreview,
-} from "@/components/AutoExclude";
-import CanvasSurface from "@/components/CanvasSurface";
-import { FrameNavigation } from "@/components/FrameNavigation";
-import { GridSidebar } from "@/components/GridSidebar";
-import { IntensitySidebar } from "@/components/IntensitySidebar";
-import Navbar from "@/components/Navbar";
-import { SelectionSidebar } from "@/components/SelectionSidebar";
+} from "@/components/auto-exclude";
+import CanvasSurface from "@/components/canvas-surface";
+import { FrameNavigation } from "@/components/frame-navigation";
+import { GridSidebar } from "@/components/grid-sidebar";
+import { IntensitySidebar } from "@/components/intensity-sidebar";
+import Navbar from "@/components/navbar";
+import { SelectionSidebar } from "@/components/selection-sidebar";
 import {
   SidebarField,
   SidebarSection,
   SidebarValue,
 } from "@/components/sidebar";
 import { Button } from "@/components/ui";
-import { useGridCanvasInteraction } from "@/hooks/useGridCanvasInteraction";
-import { useSourceFrameLoad } from "@/hooks/useSourceFrameLoad";
-import { useWorkspaceScanSync } from "@/hooks/useWorkspaceScanSync";
+import { useGridCanvasInteraction } from "@/hooks/use-grid-canvas-interaction";
+import { useSourceFrameLoad } from "@/hooks/use-source-frame-load";
+import { useWorkspaceScanSync } from "@/hooks/use-workspace-scan-sync";
 import { toErrorMessage } from "@/lib/errors";
-import { FrameCache } from "@/lib/frameCache";
+import { FrameCache } from "@/lib/frame-cache";
 import {
   useAutoExcludePreviewQuery,
   useSaveBboxMutation,
@@ -54,7 +54,7 @@ import { showErrorToast, showSuccessToast } from "@/lib/toast";
 export interface WorkspaceProps {
   workspacePath: string | null;
   source: Source | null;
-  backend: DataPort;
+  api: HostApi;
   onPickWorkspace: () => void | Promise<void>;
   onOpenNd2: () => void | Promise<void>;
   onOpenCzi: () => void | Promise<void>;
@@ -68,7 +68,7 @@ function gridCellCoordKey(cell: GridCellCoord): string {
 export default function Workspace({
   workspacePath,
   source,
-  backend,
+  api,
   onPickWorkspace,
   onOpenNd2,
   onOpenCzi,
@@ -111,15 +111,15 @@ export default function Workspace({
     })),
   );
 
-  const saveBboxMutation = useSaveBboxMutation(backend);
+  const saveBboxMutation = useSaveBboxMutation(api);
 
-  useWorkspaceScanSync(backend, workspacePath, source);
+  useWorkspaceScanSync(api, workspacePath, source);
 
   const contrastRequestKey =
     contrastMode === "auto" ? `auto:${contrastReloadToken}` : `${contrastMin}:${contrastMax}`;
 
   useSourceFrameLoad({
-    backend,
+    api,
     source,
     selection,
     contrastMode,
@@ -180,7 +180,7 @@ export default function Workspace({
     return { source, selection, cells };
   }, [activeExcludedCellKeys, autoExcludeOpen, frame, grid, selection, source]);
 
-  const autoExcludePreviewQuery = useAutoExcludePreviewQuery(backend, autoExcludeRequest);
+  const autoExcludePreviewQuery = useAutoExcludePreviewQuery(api, autoExcludeRequest);
   const autoExcludePreview = autoExcludePreviewQuery.data ?? null;
   const autoExcludeLoading = Boolean(autoExcludeRequest) && autoExcludePreviewQuery.isPending;
   const autoExcludeError = autoExcludePreviewQuery.isError

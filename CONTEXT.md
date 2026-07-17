@@ -1,6 +1,6 @@
 # Pyama
 
-Desktop viewer and Python analysis package for microscopy ROI workflows. The viewer aligns a grid over ND2/CZI frames and writes workspace artifacts; the Python package consumes those artifacts for crop, segment, timeseries, AUC, and fit.
+Desktop app and Python analysis package for microscopy ROI workflows. Pyama aligns a grid over ND2/CZI frames and writes workspace artifacts; the Python package consumes those artifacts for crop, segment, timeseries, AUC, and fit.
 
 ## Language
 
@@ -11,7 +11,7 @@ The root folder that holds ROI workflow artifacts (`bbox/`, `align/`, and later 
 _Avoid_: project root, experiment folder, data directory
 
 **Source**:
-An ND2 or CZI image file opened in the viewer.
+An ND2 or CZI image file opened in Pyama.
 _Avoid_: image, file, dataset (when meaning the microscopy file)
 
 **Scan**:
@@ -52,13 +52,9 @@ _Avoid_: SavedState, SavedAlignState, session JSON
 
 ### Host seam
 
-**DataPort**:
-The host adapter interface for loading frames, scans, align state, and saving bbox outputs.
-_Avoid_: backend API, RPC client (as the domain name)
-
-**HostPort**:
-The host adapter interface for native file/folder picking and filesystem browsing.
-_Avoid_: FS API, dialog service
+**HostApi**:
+The Tauri IPC surface for loading frames, scans, align state, saving bbox outputs, and host filesystem helpers (directory listing, home, read text).
+_Avoid_: DataPort, HostPort, backend API, RPC client (as the domain name)
 
 ### Python analysis chain
 

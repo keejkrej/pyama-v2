@@ -177,6 +177,60 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the auto_exclude_preview command.",
+          "type": "string",
+          "const": "allow-auto-exclude-preview",
+          "markdownDescription": "Enables the auto_exclude_preview command."
+        },
+        {
+          "description": "Enables the list_directory command.",
+          "type": "string",
+          "const": "allow-list-directory",
+          "markdownDescription": "Enables the list_directory command."
+        },
+        {
+          "description": "Enables the list_saved_bbox_positions command.",
+          "type": "string",
+          "const": "allow-list-saved-bbox-positions",
+          "markdownDescription": "Enables the list_saved_bbox_positions command."
+        },
+        {
+          "description": "Enables the load_align_state command.",
+          "type": "string",
+          "const": "allow-load-align-state",
+          "markdownDescription": "Enables the load_align_state command."
+        },
+        {
+          "description": "Enables the load_frame command.",
+          "type": "string",
+          "const": "allow-load-frame",
+          "markdownDescription": "Enables the load_frame command."
+        },
+        {
+          "description": "Enables the read_text_file command.",
+          "type": "string",
+          "const": "allow-read-text-file",
+          "markdownDescription": "Enables the read_text_file command."
+        },
+        {
+          "description": "Enables the save_bbox command.",
+          "type": "string",
+          "const": "allow-save-bbox",
+          "markdownDescription": "Enables the save_bbox command."
+        },
+        {
+          "description": "Enables the scan_source command.",
+          "type": "string",
+          "const": "allow-scan-source",
+          "markdownDescription": "Enables the scan_source command."
+        },
+        {
+          "description": "Enables the user_home_directory command.",
+          "type": "string",
+          "const": "allow-user-home-directory",
+          "markdownDescription": "Enables the user_home_directory command."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

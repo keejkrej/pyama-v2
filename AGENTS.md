@@ -11,3 +11,7 @@ Canonical triage roles map 1:1 to their default strings (`needs-triage`, `needs-
 ### Domain docs
 
 Single-context layout: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+### React naming
+
+Kebab-case files; PascalCase components; camelCase functions/hooks. See `docs/agents/react-naming.md`.

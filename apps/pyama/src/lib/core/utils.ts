@@ -110,18 +110,18 @@ export function applyGridPointerGesture(
     const sizeFactor = Math.max(0.01, 1 + (deltaY / Math.max(1, viewport.displayHeight)) * 2.5);
     return normalizeGridState({
       ...session.startGrid,
-      spacingA: session.startGrid.spacingA * spacingFactor,
-      spacingB: session.startGrid.spacingB * spacingFactor,
-      cellWidth: session.startGrid.cellWidth * sizeFactor,
-      cellHeight: session.startGrid.cellHeight * sizeFactor,
+      spacingX: session.startGrid.spacingX * spacingFactor,
+      spacingY: session.startGrid.spacingY * spacingFactor,
+      patternW: session.startGrid.patternW * sizeFactor,
+      patternH: session.startGrid.patternH * sizeFactor,
     });
   }
 
   const factor = Math.max(0.01, 1 + (deltaX / Math.max(1, viewport.displayWidth)) * 2.5);
   return normalizeGridState({
     ...session.startGrid,
-    spacingA: session.startGrid.spacingA * factor,
-    spacingB: session.startGrid.spacingB * factor,
+    spacingX: session.startGrid.spacingX * factor,
+    spacingY: session.startGrid.spacingY * factor,
   });
 }
 
@@ -148,48 +148,48 @@ export function createDefaultGrid(): GridState {
     tx: 0,
     ty: 0,
     rotation: 0,
-    spacingA: 325,
-    spacingB: 325,
-    cellWidth: 200,
-    cellHeight: 200,
+    spacingX: 325,
+    spacingY: 325,
+    patternW: 200,
+    patternH: 200,
     opacity: 0.35,
   };
 }
 
-export function minimumGridSpacing(cellWidth: number, cellHeight: number): number {
-  return Math.max(1, Math.min(cellWidth, cellHeight));
+export function minimumGridSpacing(patternW: number, patternH: number): number {
+  return Math.max(1, Math.min(patternW, patternH));
 }
 
 export function normalizeGridState(input?: Partial<GridState>): GridState {
   const base = createDefaultGrid();
   if (!input) return base;
-  const cellWidth = Math.max(1, input.cellWidth ?? base.cellWidth);
-  const cellHeight = Math.max(1, input.cellHeight ?? base.cellHeight);
-  const minSpacing = minimumGridSpacing(cellWidth, cellHeight);
+  const patternW = Math.max(1, input.patternW ?? base.patternW);
+  const patternH = Math.max(1, input.patternH ?? base.patternH);
+  const minSpacing = minimumGridSpacing(patternW, patternH);
   return {
     enabled: input.enabled ?? base.enabled,
     shape: input.shape ?? base.shape,
     tx: input.tx ?? base.tx,
     ty: input.ty ?? base.ty,
     rotation: input.rotation ?? base.rotation,
-    spacingA: Math.max(minSpacing, input.spacingA ?? base.spacingA),
-    spacingB: Math.max(minSpacing, input.spacingB ?? base.spacingB),
-    cellWidth,
-    cellHeight,
+    spacingX: Math.max(minSpacing, input.spacingX ?? base.spacingX),
+    spacingY: Math.max(minSpacing, input.spacingY ?? base.spacingY),
+    patternW,
+    patternH,
     opacity: clamp(input.opacity ?? base.opacity, 0, 1),
   };
 }
 
-export function gridBasis(shape: GridShape, rotation: number, spacingA: number, spacingB: number) {
+export function gridBasis(shape: GridShape, rotation: number, spacingX: number, spacingY: number) {
   const secondAngle = rotation + (shape === "square" ? Math.PI / 2 : Math.PI / 3);
   return {
     a: {
-      x: Math.cos(rotation) * spacingA,
-      y: Math.sin(rotation) * spacingA,
+      x: Math.cos(rotation) * spacingX,
+      y: Math.sin(rotation) * spacingX,
     },
     b: {
-      x: Math.cos(secondAngle) * spacingB,
-      y: Math.sin(secondAngle) * spacingB,
+      x: Math.cos(secondAngle) * spacingY,
+      y: Math.sin(secondAngle) * spacingY,
     },
   };
 }
@@ -197,11 +197,11 @@ export function gridBasis(shape: GridShape, rotation: number, spacingA: number, 
 export function estimateGridDraw(
   width: number,
   height: number,
-  spacingA: number,
-  spacingB: number,
+  spacingX: number,
+  spacingY: number,
   _maxRects = MAX_GRID_RECTS,
 ) {
-  const minSpacing = Math.max(1, Math.min(spacingA, spacingB));
+  const minSpacing = Math.max(1, Math.min(spacingX, spacingY));
   const estimatedColumns = Math.ceil(width / minSpacing) + 3;
   const estimatedRows = Math.ceil(height / minSpacing) + 3;
   const range = Math.max(estimatedColumns, estimatedRows);
@@ -216,15 +216,15 @@ export function estimateGridDraw(
 }
 
 function resolveVisibleGridIndexBounds(frame: GridFrameBounds, grid: GridState) {
-  const basis = gridBasis(grid.shape, grid.rotation, grid.spacingA, grid.spacingB);
+  const basis = gridBasis(grid.shape, grid.rotation, grid.spacingX, grid.spacingY);
   const originX = frame.width / 2 + grid.tx;
   const originY = frame.height / 2 + grid.ty;
-  const halfWidth = grid.cellWidth / 2;
-  const halfHeight = grid.cellHeight / 2;
+  const halfWidth = grid.patternW / 2;
+  const halfHeight = grid.patternH / 2;
   const determinant = basis.a.x * basis.b.y - basis.a.y * basis.b.x;
 
   if (Math.abs(determinant) <= GRID_BOUNDS_EPSILON) {
-    const drawStats = estimateGridDraw(frame.width, frame.height, grid.spacingA, grid.spacingB);
+    const drawStats = estimateGridDraw(frame.width, frame.height, grid.spacingX, grid.spacingY);
     return {
       basis,
       originX,
@@ -281,8 +281,8 @@ export function enumerateVisibleGridCells(frame: GridFrameBounds, grid: GridStat
   const { basis, originX, originY, halfWidth, halfHeight, iMin, iMax, jMin, jMax } =
     resolveVisibleGridIndexBounds(frame, grid);
   const cells: GridCellBox[] = [];
-  const rawWidth = Math.max(1, Math.round(grid.cellWidth));
-  const rawHeight = Math.max(1, Math.round(grid.cellHeight));
+  const rawWidth = Math.max(1, Math.round(grid.patternW));
+  const rawHeight = Math.max(1, Math.round(grid.patternH));
 
   for (let i = iMin; i <= iMax; i += 1) {
     for (let j = jMin; j <= jMax; j += 1) {
@@ -341,7 +341,7 @@ export function collectStrokeToggleCells(
   endPoint: { x: number; y: number },
   alreadyToggledCells?: Iterable<GridCellCoord>,
 ): GridCellCoord[] {
-  const sampleDistance = Math.max(4, Math.min(grid.cellWidth, grid.cellHeight) / 4);
+  const sampleDistance = Math.max(4, Math.min(grid.patternW, grid.patternH) / 4);
   const distance = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
   const steps = Math.max(1, Math.ceil(distance / sampleDistance));
   const skippedCells = new Set(Array.from(alreadyToggledCells ?? [], gridCellCoordKey));
@@ -380,7 +380,7 @@ export function countVisibleCells(
 }
 
 export function collectEdgeCells(frame: GridFrameBounds, grid: GridState): GridCellCoord[] {
-  const targetArea = Math.max(1, Math.round(grid.cellWidth)) * Math.max(1, Math.round(grid.cellHeight));
+  const targetArea = Math.max(1, Math.round(grid.patternW)) * Math.max(1, Math.round(grid.patternH));
   const edgeAreaThreshold = targetArea * 0.8;
   return enumerateVisibleGridCells(frame, grid)
     .filter(
@@ -465,7 +465,7 @@ export function applyGridWheelGesture(
   const factor = scaleFactorFromDelta(deltaY);
   return normalizeGridState({
     ...grid,
-    cellWidth: grid.cellWidth * factor,
-    cellHeight: grid.cellHeight * factor,
+    patternW: grid.patternW * factor,
+    patternH: grid.patternH * factor,
   });
 }

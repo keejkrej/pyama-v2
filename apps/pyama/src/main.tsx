@@ -5,7 +5,7 @@ import { QueryProvider } from "@/lib/query";
 import "./fonts.css";
 import "./styles/app.css";
 
-import App from "./App";
+import App from "./app";
 
 document.documentElement.classList.add("dark");
 

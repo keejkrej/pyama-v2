@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ContrastWindow, FrameResult } from "@/lib/contracts";
 import { clamp } from "@/lib/core";
-import { AppSlider } from "@/components/Controls";
+import { AppSlider } from "@/components/controls";
 import { SidebarField, SidebarSection } from "@/components/sidebar";
 import { Button } from "@/components/ui";
-import { contrastWindowForFrame } from "@/hooks/frameContrast";
+import { contrastWindowForFrame } from "@/hooks/frame-contrast";
 import { patchViewState, reloadAutoContrast } from "@/lib/store";
 
 export interface IntensitySidebarProps {

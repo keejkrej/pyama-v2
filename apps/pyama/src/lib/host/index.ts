@@ -1,7 +1,2 @@
-export {
-  createHostPorts,
-  getWebSocketUrl,
-  type HostPorts,
-  type HostPortsOptions,
-} from "./hostPorts";
-export type { HostPort } from "@/lib/contracts";
+export { createHostApi } from "./host-api";
+export type { HostApi } from "@/lib/contracts";

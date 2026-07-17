@@ -1,7 +1,7 @@
 import type { AutoExcludePreviewRequest, Source } from "@/lib/contracts";
 
 /**
- * Stable query keys for DataPort-backed queries.
+ * Stable query keys for HostApi-backed queries.
  *
  * Policy: never key or cache {@link import("@/lib/contracts").FrameResult}
  * (pixel buffers).

@@ -8,6 +8,7 @@ export type {
   ContrastWindow,
   FrameRequest,
   FrameResult,
+  HostApi,
   HostFilePickerMode,
   HostFsEntry,
   HostListDirectoryResult,
@@ -22,10 +23,7 @@ export type {
   SaveBboxResponse,
   CanvasStatusMessage,
   CanvasStatusTone,
-  DataPort,
-  DataSource,
-  HostPort,
   Selection,
   Source,
-  WorkspaceScan
+  WorkspaceScan,
 } from "./types";

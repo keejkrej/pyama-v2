@@ -1,20 +1,20 @@
 /**
- * Shared TanStack Query integration for `DataPort` IPC.
+ * Shared TanStack Query integration for `HostApi` IPC.
  *
  * **Cache policy:** queryFns in this module never persist {@link import("@/lib/contracts").FrameResult}
  * (pixel buffers).
  */
 
-export { createQueryClient } from "./createQueryClient";
-export { QueryProvider } from "./QueryProvider";
-export { queryKeys } from "./queryKeys";
+export { createQueryClient } from "./create-query-client";
+export { QueryProvider } from "./query-provider";
+export { queryKeys } from "./query-keys";
 export {
   QUERY_STALE_TIME,
   alignStateQueryOptions,
   autoExcludePreviewQueryOptions,
   savedBboxPositionsQueryOptions,
   scanSourceQueryOptions,
-} from "./queryOptions";
+} from "./query-options";
 export {
   useAlignStateQuery,
   useAutoExcludePreviewQuery,

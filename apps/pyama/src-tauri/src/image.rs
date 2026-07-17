@@ -4,9 +4,9 @@ use std::path::Path;
 use czi_rs::CziFile;
 use nd2_rs::Nd2File;
 
-use crate::viewer::domain::{
+use crate::domain::{
     dimension_size, dimension_values, validate_request_index, ContrastWindow, FrameRequest,
-    ViewerSource, WorkspaceScan,
+    Source, WorkspaceScan,
 };
 
 const SAMPLE_SIZE: usize = 2048;
@@ -197,17 +197,17 @@ pub fn load_czi_frame(path: &Path, request: FrameRequest) -> Result<RawFrame, St
     reader.read_frame_2d(pos, time, channel, z)
 }
 
-pub fn scan_source(source: ViewerSource) -> Result<WorkspaceScan, String> {
+pub fn scan_source(source: Source) -> Result<WorkspaceScan, String> {
     match source {
-        ViewerSource::Nd2 { path } => scan_nd2(Path::new(&path)),
-        ViewerSource::Czi { path } => scan_czi(Path::new(&path)),
+        Source::Nd2 { path } => scan_nd2(Path::new(&path)),
+        Source::Czi { path } => scan_czi(Path::new(&path)),
     }
 }
 
-pub fn load_frame(source: ViewerSource, request: FrameRequest) -> Result<RawFrame, String> {
+pub fn load_frame(source: Source, request: FrameRequest) -> Result<RawFrame, String> {
     match source {
-        ViewerSource::Nd2 { path } => load_nd2_frame(Path::new(&path), request),
-        ViewerSource::Czi { path } => load_czi_frame(Path::new(&path), request),
+        Source::Nd2 { path } => load_nd2_frame(Path::new(&path), request),
+        Source::Czi { path } => load_czi_frame(Path::new(&path), request),
     }
 }
 
