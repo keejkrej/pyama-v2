@@ -8,7 +8,7 @@ from typing import Callable
 
 import numpy as np
 import tifffile
-from mdat.core.formats.input.session import open_reader
+from pyama.readers import open_reader
 
 from pyama.core.bbox import (
     RoiBbox,

@@ -7,10 +7,11 @@ dependencies = [
   "imageio",
   "imageio-ffmpeg",
   "matplotlib",
-  "mdat",
+  "nd2>=0.10",
   "numpy",
   "openpyxl>=3.1.5",
   "pandas<3",
+  "pylibCZIrw>=4.1",
   "tifffile",
 ]
 
@@ -19,9 +20,6 @@ notebook = [
   "ipykernel",
   "jupyter",
 ]
-
-[tool.uv.sources]
-mdat = { path = "../mdat-py", editable = true }
 
 [build-system]
 requires = ["hatchling", "pathspec<0.13"]
