@@ -22,10 +22,12 @@ The UI talks to the Rust host via **Tauri IPC** (`invoke`). Use `bun run dev:pya
 
 ## Python analysis
 
-Experiment configuration lives in Jupyter notebooks.
+Experiment configuration lives in Jupyter notebooks. Typical handoff from **LiSCA Aligner** (light align → `bbox/` only, no long crop jobs in the webapp):
 
-1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/`
-2. **Analyze** (`notebooks/analyze.ipynb`): `segment` → `timeseries` → `plot-timeseries` → `auc` → `plot-auc` → `fit` → `plot-fit`
+1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/` — **this package is the Python crop goal source**
+2. **Analyze** (`notebooks/analyze.ipynb`): `segment` → `timeseries` → … — or use sibling `lisca-transfection-assay` for transfection analysis CLI
+
+Nontechnical path while Studio is still in dev: Aligner → these notebooks. Power users/agents often crop here (or `lisca-crop`) then run `transfection` analysis separately.
 
 ### Install
 
