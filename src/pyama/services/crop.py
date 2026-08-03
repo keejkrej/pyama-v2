@@ -84,7 +84,13 @@ def _write_index(
     channel_count: int,
     z_count: int,
     bboxes: list[RoiBbox],
+    time_indices: list[int] | None = None,
 ) -> None:
+    resolved_times = list(time_indices) if time_indices is not None else list(range(time_count))
+    if len(resolved_times) != time_count:
+        raise ValueError(
+            f"timeIndices length {len(resolved_times)} does not match timeCount {time_count}"
+        )
     index = {
         "position": pos,
         "axisOrder": "TCZYX",
@@ -92,6 +98,8 @@ def _write_index(
         "timeCount": time_count,
         "channelCount": channel_count,
         "zCount": z_count,
+        # Source acquisition indices for each T plane (may skip frames when downsampled).
+        "timeIndices": resolved_times,
         "source": {"kind": _source_kind(source_path), "path": str(source_path.resolve())},
         "rois": [
             {
@@ -259,6 +267,7 @@ def _crop_position_with_reader(
             channel_count=len(channel_indices),
             z_count=len(z_indices),
             bboxes=bboxes,
+            time_indices=time_indices,
         )
         _publish_staged_directory(staging_dir, output_dir, overwrite=force)
         staging.disarm()
