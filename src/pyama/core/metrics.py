@@ -95,6 +95,7 @@ def compute_masked_roi_metrics(
 
         stack = read_roi_stack(roi_path, roi.shape)
         first_frame = roi_frame_2d(stack, index.axis_order, timepoint=0, channel=channel)
+        frame_shape = tuple(int(value) for value in first_frame.shape)
         mask_path = default_mask_path(
             workspace,
             position=index.position,
@@ -102,11 +103,15 @@ def compute_masked_roi_metrics(
             mask_channel=mask_channel,
             roi_file_name=roi.file_name,
         )
-        mask_stack = read_mask_stack(
-            mask_path,
-            time_count=index.time_count,
-            frame_shape=tuple(int(value) for value in first_frame.shape),
-        )
+        if mask_path.is_file():
+            mask_stack = read_mask_stack(
+                mask_path,
+                time_count=index.time_count,
+                frame_shape=frame_shape,
+            )
+        else:
+            # No segment masks: treat the full ROI as foreground (background=0).
+            mask_stack = np.ones((index.time_count, *frame_shape), dtype=bool)
 
         for timepoint in range(index.time_count):
             frame = np.asarray(
