@@ -18,6 +18,7 @@ from pyama.core import (
     load_timeseries_csv,
     trace_color_alpha_from_fluor_name,
 )
+from pyama.core.slide import SlideMapping
 
 
 
@@ -29,6 +30,7 @@ def render_plot_timeseries(
     results_dir: Path | None,
     columns: int,
     slide_channel_names: dict[int, str],
+    mapping: SlideMapping,
 ) -> tuple[Path, ...]:
     if interval <= 0:
         raise ValueError(f"--interval must be > 0, got {interval}")
@@ -47,6 +49,7 @@ def render_plot_timeseries(
             interval=interval,
             columns=columns,
             slide_channel_names=slide_channel_names,
+            mapping=mapping,
         )
     )
     if all("area" in df.columns for _, df in panels):
@@ -60,6 +63,7 @@ def render_plot_timeseries(
                 interval=interval,
                 columns=columns,
                 slide_channel_names=slide_channel_names,
+                mapping=mapping,
             )
         )
     return tuple(written_plots)
@@ -74,6 +78,7 @@ def write_metric_plots(
     interval: float,
     columns: int,
     slide_channel_names: dict[int, str],
+    mapping: SlideMapping,
 ) -> tuple[Path, Path]:
     panel_ylims = [percentile_ylim(panel_values(df, y_column)) for _, df in panels]
     unified_low = min(lo for lo, _ in panel_ylims)
@@ -89,6 +94,7 @@ def write_metric_plots(
         ylim_fn=lambda i: panel_ylims[i],
         columns=columns,
         slide_channel_names=slide_channel_names,
+        mapping=mapping,
     )
     write_subplot_grid(
         panels,
@@ -99,6 +105,7 @@ def write_metric_plots(
         ylim_fn=lambda _i: (unified_low, unified_high),
         columns=columns,
         slide_channel_names=slide_channel_names,
+        mapping=mapping,
     )
     return (output_plot, shared_y_plot)
 
@@ -158,17 +165,15 @@ def subplot_title(
     csv_path: Path,
     trace_count: int | None = None,
     *,
-    df: pd.DataFrame | None = None,
     slide_channel_names: dict[int, str] | None = None,
+    mapping: SlideMapping,
 ) -> str:
     names = slide_channel_names or {}
-    sc = auc.parse_slide_channel(csv_path, df)
-    if sc is not None and sc in names:
+    sc = auc.parse_slide_channel(csv_path, mapping)
+    if sc in names:
         label = names[sc]
-    elif sc is not None:
-        label = f"slide channel {sc}"
     else:
-        label = csv_path.stem
+        label = f"slide channel {sc}"
     if trace_count is None:
         return label
     return f"{label} ({trace_count} traces)"
@@ -182,12 +187,12 @@ def trace_group_columns(df) -> list[str]:
 
 
 def trace_naming_haystack(
-    csv_path: Path, slide_channel_names: dict[int, str], df: pd.DataFrame | None = None
+    csv_path: Path, slide_channel_names: dict[int, str], mapping: SlideMapping
 ) -> str:
     """Text used to infer fluor colors (filename, stem, optional slide channel label)."""
     parts = [csv_path.name, csv_path.stem]
-    sc = auc.parse_slide_channel(csv_path, df)
-    if sc is not None and sc in slide_channel_names:
+    sc = auc.parse_slide_channel(csv_path, mapping)
+    if sc in slide_channel_names:
         parts.append(slide_channel_names[sc])
     return " ".join(parts)
 
@@ -202,6 +207,7 @@ def write_subplot_grid(
     ylim_fn: Callable[[int], tuple[float, float]],
     columns: int,
     slide_channel_names: dict[int, str],
+    mapping: SlideMapping,
 ) -> None:
     rows = math.ceil(len(panels) / columns)
     fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
@@ -209,7 +215,7 @@ def write_subplot_grid(
 
     for index, (ax, (csv_path, df)) in enumerate(zip(axes_flat, panels)):
         trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
-            trace_naming_haystack(csv_path, slide_channel_names, df)
+            trace_naming_haystack(csv_path, slide_channel_names, mapping)
         )
         trace_groups = df.groupby(trace_group_columns(df), sort=True, dropna=False)
         for _, roi_df in trace_groups:
@@ -217,7 +223,7 @@ def write_subplot_grid(
             ax.plot(t_minutes, roi_df[y_column], color=trace_color, alpha=trace_alpha)
         ax.set_title(
             subplot_title(
-                csv_path, trace_groups.ngroups, df=df, slide_channel_names=slide_channel_names
+                csv_path, trace_groups.ngroups, slide_channel_names=slide_channel_names, mapping=mapping
             )
         )
         ax.set_xlabel("minutes")
@@ -246,9 +252,11 @@ def run_plot_timeseries(
     slide_channel_names: dict[int, str],
     output: Path | None = None,
     columns: int = 3,
+    mapping: SlideMapping,
 ) -> tuple[Path, ...]:
     timeseries_csvs = paths.discover_timeseries_csvs(metrics_dir)
-    results_dir = paths.workspace_results_dir(metrics_dir.parent)
+    workspace = paths.infer_workspace_for_timeseries_dir(metrics_dir)
+    results_dir = paths.workspace_results_dir(workspace)
     return render_plot_timeseries(
         timeseries_csvs,
         interval=interval,
@@ -256,4 +264,5 @@ def run_plot_timeseries(
         results_dir=None if output is not None else results_dir,
         columns=columns,
         slide_channel_names=slide_channel_names,
+        mapping=mapping,
     )

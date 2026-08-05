@@ -62,11 +62,13 @@ _Avoid_: DataPort, HostPort, backend API, RPC client (as the domain name)
 
 **ROI**:
 A cropped region derived from BBox CSV entries for downstream analysis.
+On disk: `roi/Pos{n}/` with slim `index.json` — always `axisOrder: "TCZYX"`, keep `zCount` (use `1` if no z-stack); stack shape derived from counts + `bbox` (no per-ROI `shape`, no `source` / `pageOrder`).
 _Avoid_: crop (as the noun for the region itself — use for the crop step)
 
 **Timeseries**:
 Per-ROI intensity (or derived) values across time.
 Tables are stored per position and signal channel at `timeseries/Pos{n}/ch{n}.csv` with a parallel `.xlsx` file.
+Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`; slide join key comes from the notebook `SLIDE_MAPPING`, not `assay.json`).
 _Avoid_: trace, curve (as primary term)
 
 **AUC**:

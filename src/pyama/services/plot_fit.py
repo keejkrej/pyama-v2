@@ -19,6 +19,7 @@ from pyama.core import (
     load_timeseries_csv,
     trace_color_alpha_from_fluor_name,
 )
+from pyama.core.slide import SlideMapping
 
 PLOTTED_PARAMETERS = (
     ("intensity_offset", "intensity offset"),
@@ -40,10 +41,12 @@ def run_plot_fit(
     fit_csv: Path,
     *,
     slide_channel_names: dict[int, str],
-    output: Path | None,
     interval: float,
-    columns: int,
+    mapping: SlideMapping,
+    output: Path | None = None,
+    columns: int = 3,
 ) -> list[Path]:
+    """Plot fit results; ``mapping`` comes from the notebook Config cell (not assay.json)."""
     resolved_fit_csv = fit_csv.resolve()
     df = load_fit_csv(resolved_fit_csv)
     output_paths = default_output_plot_paths(resolved_fit_csv, output)
@@ -90,6 +93,7 @@ def run_plot_fit(
         interval=interval,
         columns=columns,
         slide_channel_names=slide_channel_names,
+        mapping=mapping,
     )
     written_paths.append(fit_trace_plot)
     return written_paths
@@ -218,6 +222,7 @@ def write_fitted_trace_grid(
     interval: float,
     columns: int,
     slide_channel_names: dict[int, str],
+    mapping: SlideMapping,
 ) -> None:
     rows = math.ceil(len(timeseries_csvs) / columns)
     fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
@@ -231,9 +236,9 @@ def write_fitted_trace_grid(
 
     for ax, csv_path in zip(axes_flat, timeseries_csvs):
         df = load_timeseries_csv(csv_path)
-        slide_channel = auc.parse_slide_channel(csv_path, df)
+        slide_channel = auc.parse_slide_channel(csv_path, mapping)
         trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
-            plot_timeseries.trace_naming_haystack(csv_path, slide_channel_names, df)
+            plot_timeseries.trace_naming_haystack(csv_path, slide_channel_names, mapping)
         )
         matched_traces = 0
         trace_groups = df.groupby(plot_timeseries.trace_group_columns(df), sort=True, dropna=False)
@@ -256,7 +261,7 @@ def write_fitted_trace_grid(
 
         ax.set_title(
             plot_timeseries.subplot_title(
-                csv_path, matched_traces, df=df, slide_channel_names=slide_channel_names
+                csv_path, matched_traces, slide_channel_names=slide_channel_names, mapping=mapping
             )
         )
         ax.set_xlabel("minutes")

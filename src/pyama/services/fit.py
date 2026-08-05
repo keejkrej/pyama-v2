@@ -12,6 +12,7 @@ import pandas as pd
 from pyama import core as paths
 from pyama.core import load_timeseries_csv
 from pyama.core.export import parallel_xlsx_path, write_csv_and_parallel_xlsx
+from pyama.core.slide import SlideMapping
 from pyama.services import auc
 
 
@@ -45,13 +46,20 @@ class FitResult:
     expression_amplitude: float
 
 
-def integrate_fit_csvs(timeseries_csvs: list[Path], *, interval: float, output_csv: Path | None) -> Path:
+def integrate_fit_csvs(
+    timeseries_csvs: list[Path],
+    *,
+    interval: float,
+    output_csv: Path | None,
+    mapping: SlideMapping,
+) -> Path:
     return run_fit_with_jobs(
         timeseries_csvs,
         interval=interval,
         output_csv=output_csv,
         max_onset_minutes=0.0,
         jobs=1,
+        mapping=mapping,
     )
 
 
@@ -62,6 +70,7 @@ def run_fit_with_jobs(
     output_csv: Path | None,
     max_onset_minutes: float | None,
     jobs: int,
+    mapping: SlideMapping,
 ) -> Path:
     if interval <= 0:
         raise ValueError(f"--interval must be > 0, got {interval}")
@@ -76,6 +85,7 @@ def run_fit_with_jobs(
         interval=interval,
         max_onset_minutes=max_onset_minutes,
         jobs=jobs,
+        mapping=mapping,
     )
     resolved_output_csv = default_output_csv_path(resolved_csvs, output_csv)
     write_fit_csv(fit_df, resolved_output_csv)
@@ -341,6 +351,7 @@ def compute_fit_table(
     interval: float,
     max_onset_minutes: float | None = 0.0,
     jobs: int = 1,
+    mapping: SlideMapping,
 ) -> pd.DataFrame:
     if jobs < 1:
         raise ValueError(f"--jobs must be >= 1, got {jobs}")
@@ -348,18 +359,21 @@ def compute_fit_table(
     tasks: list[tuple[int | None, dict[str, int], list[float], list[float], float]] = []
     for csv_path in timeseries_csvs:
         df = load_timeseries_csv(csv_path)
-        slide_channel = auc.parse_slide_channel(csv_path, df)
-        group_columns = [column for column in auc.GROUP_COLUMNS if column in df.columns]
-        if not group_columns:
-            raise ValueError(f"{csv_path} has no supported grouping columns: {auc.GROUP_COLUMNS}")
+        slide_channel = auc.parse_slide_channel(csv_path, mapping)
+        position, _signal_channel = paths.parse_timeseries_path(csv_path)
+        if "pos" not in df.columns:
+            df = df.assign(pos=position)
+        if "roi" not in df.columns:
+            raise ValueError(f"{csv_path} is missing required column: roi")
 
-        for group_key, trace_df in df.groupby(group_columns, sort=True):
+        for group_key, trace_df in df.groupby(["pos", "roi"], sort=True):
             if not isinstance(group_key, tuple):
                 group_key = (group_key,)
+            pos, roi = group_key
             tasks.append(
                 (
                     slide_channel,
-                    {column: int(value) for column, value in zip(group_columns, group_key, strict=True)},
+                    {"pos": int(pos), "roi": int(roi)},
                     trace_df["t"].astype(float).tolist(),
                     trace_df["corrected"].astype(float).tolist(),
                     interval,
@@ -481,7 +495,10 @@ def run_fit(
     interval: float,
     max_onset_minutes: float = 0.0,
     jobs: int = 1,
+    mapping: SlideMapping,
 ) -> Path:
+    """Fit traces; ``mapping`` comes from the notebook Config cell (not assay.json)."""
+    workspace = workspace.resolve()
     timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_timeseries_dir(workspace))
     results_dir = paths.workspace_results_dir(workspace)
     output_csv = default_output_csv_path(timeseries_csvs, None, results_dir=results_dir)
@@ -491,4 +508,5 @@ def run_fit(
         output_csv=output_csv,
         max_onset_minutes=max_onset_minutes,
         jobs=jobs,
+        mapping=mapping,
     )

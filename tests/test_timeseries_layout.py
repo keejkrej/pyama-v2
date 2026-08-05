@@ -1,8 +1,10 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
-from pyama.core import discover_timeseries_csvs, validate_slide_mapping
+from pyama.core import discover_timeseries_csvs, resolve_slide_channel, validate_slide_mapping
+from pyama.core.roi import read_position_index
 from pyama.services.auc import compute_auc_table
 from pyama.services.timeseries import default_position_timeseries_csv_path
 
@@ -23,20 +25,24 @@ def test_discovers_position_channel_tables(tmp_path: Path) -> None:
     assert discover_timeseries_csvs(tmp_path) == [first, second]
 
 
-def test_auc_uses_slide_channel_column(tmp_path: Path) -> None:
+def test_auc_resolves_slide_channel_from_path(tmp_path: Path) -> None:
     csv_path = tmp_path / "Pos3" / "ch1.csv"
     csv_path.parent.mkdir(parents=True)
     pd.DataFrame(
         {
-            "slide_channel": [4, 4],
-            "pos": [3, 3],
             "roi": [0, 0],
             "t": [0, 1],
+            "area": [1, 1],
+            "background": [0.0, 0.0],
+            "sum": [2.0, 4.0],
             "corrected": [2.0, 4.0],
         }
     ).to_csv(csv_path, index=False)
 
-    result = compute_auc_table([csv_path], interval=2.0)
+    mapping = validate_slide_mapping(
+        {4: {"positions": [3], "signal_channel": 1, "sample_name": "sample"}}
+    )
+    result = compute_auc_table([csv_path], interval=2.0, mapping=mapping)
     assert result.loc[0, "slide_channel"] == 4
     assert result.loc[0, "auc"] == 6.0
 
@@ -46,3 +52,69 @@ def test_slide_mapping_needs_only_signal_channel() -> None:
         {0: {"positions": [0, 1], "signal_channel": 2, "sample_name": "sample"}}
     )
     assert mapping[0].signal_channel == 2
+
+
+def test_resolve_slide_channel_unique_match() -> None:
+    mapping = validate_slide_mapping(
+        {
+            0: {"positions": [1, 2], "signal_channel": 0, "sample_name": "a"},
+            1: {"positions": [3], "signal_channel": 1, "sample_name": "b"},
+        }
+    )
+    assert resolve_slide_channel(mapping, position=2, signal_channel=0) == 0
+    assert resolve_slide_channel(mapping, position=3, signal_channel=1) == 1
+
+
+def test_resolve_slide_channel_ambiguous() -> None:
+    mapping = validate_slide_mapping(
+        {
+            0: {"positions": [1], "signal_channel": 0, "sample_name": "a"},
+            1: {"positions": [1], "signal_channel": 0, "sample_name": "b"},
+        }
+    )
+    with pytest.raises(ValueError, match="Ambiguous"):
+        resolve_slide_channel(mapping, position=1, signal_channel=0)
+
+
+def _write_index(path: Path, *, time_count: int, time_indices: list[int] | None) -> None:
+    payload = {
+        "position": 0,
+        "axisOrder": "TCZYX",
+        "timeCount": time_count,
+        "channelCount": 1,
+        "zCount": 1,
+        "rois": [
+            {
+                "roi": 0,
+                "fileName": "roi0.tif",
+                "bbox": {"roi": 0, "x": 0, "y": 0, "w": 2, "h": 2},
+            }
+        ],
+    }
+    if time_indices is not None:
+        payload["timeIndices"] = time_indices
+    path.write_text(__import__("json").dumps(payload), encoding="utf-8")
+
+
+def test_time_indices_default_dense(tmp_path: Path) -> None:
+    pos_dir = tmp_path / "Pos0"
+    pos_dir.mkdir()
+    _write_index(pos_dir / "index.json", time_count=4, time_indices=None)
+    index = read_position_index(pos_dir)
+    assert index.time_indices == (0, 1, 2, 3)
+
+
+def test_time_indices_downsampled(tmp_path: Path) -> None:
+    pos_dir = tmp_path / "Pos0"
+    pos_dir.mkdir()
+    _write_index(pos_dir / "index.json", time_count=4, time_indices=[0, 6, 12, 18])
+    index = read_position_index(pos_dir)
+    assert index.time_indices == (0, 6, 12, 18)
+
+
+def test_time_indices_length_mismatch(tmp_path: Path) -> None:
+    pos_dir = tmp_path / "Pos0"
+    pos_dir.mkdir()
+    _write_index(pos_dir / "index.json", time_count=3, time_indices=[0, 6])
+    with pytest.raises(ValueError, match="timeIndices length"):
+        read_position_index(pos_dir)

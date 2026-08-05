@@ -48,9 +48,9 @@ def compute_roi_metrics(
             raise ValueError(f"Missing ROI TIFF referenced by index.json: {roi_path}")
 
         stack = read_roi_stack(roi_path, roi.shape)
-        for timepoint in range(index.time_count):
+        for stack_t in range(index.time_count):
             patch = np.asarray(
-                roi_frame_2d(stack, index.axis_order, timepoint=timepoint, channel=channel),
+                roi_frame_2d(stack, index.axis_order, timepoint=stack_t, channel=channel),
                 dtype=np.uint64,
             )
             quantile_values = np.quantile(patch, quartiles, method="linear")
@@ -63,7 +63,7 @@ def compute_roi_metrics(
                 {
                     "pos": index.position,
                     "channel": channel,
-                    "t": timepoint,
+                    "t": index.time_indices[stack_t],
                     "roi": roi.roi,
                     "x": roi.x,
                     "y": roi.y,
@@ -84,7 +84,6 @@ def compute_timeseries_metrics(
     pos_dir: Path,
     index: PositionIndex,
     *,
-    slide_channel: int,
     channel: int,
 ) -> pd.DataFrame:
     rows: list[dict[str, int | float | None]] = []
@@ -94,29 +93,22 @@ def compute_timeseries_metrics(
             raise ValueError(f"Missing ROI TIFF referenced by index.json: {roi_path}")
 
         stack = read_roi_stack(roi_path, roi.shape)
-        for timepoint in range(index.time_count):
+        for stack_t in range(index.time_count):
             frame = np.asarray(
-                roi_frame_2d(stack, index.axis_order, timepoint=timepoint, channel=channel),
+                roi_frame_2d(stack, index.axis_order, timepoint=stack_t, channel=channel),
                 dtype=np.float64,
             )
             area = int(frame.size)
-            intensity = float(frame.sum(dtype=np.float64))
+            sum_intensity = float(frame.sum(dtype=np.float64))
             background = float(np.quantile(frame, UNMASKED_BACKGROUND_QUANTILE, method="linear"))
             rows.append(
                 {
-                    "pos": index.position,
-                    "slide_channel": slide_channel,
-                    "channel": channel,
-                    "t": timepoint,
                     "roi": roi.roi,
-                    "x": roi.x,
-                    "y": roi.y,
-                    "w": roi.w,
-                    "h": roi.h,
+                    "t": index.time_indices[stack_t],
                     "area": area,
                     "background": background,
-                    "intensity": intensity,
-                    "corrected": intensity - area * background,
+                    "sum": sum_intensity,
+                    "corrected": sum_intensity - area * background,
                 }
             )
 

@@ -25,7 +25,7 @@ The UI talks to the Rust host via **Tauri IPC** (`invoke`). Use `pnpm dev:pyama`
 Experiment configuration lives in Jupyter notebooks. Typical handoff from **LiSCA Aligner** (light align → `bbox/` only, no long crop jobs in the webapp):
 
 1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/` — **this package is the Python crop goal source**
-2. **Analyze** (`notebooks/analyze.ipynb`): one unsegmented `timeseries` → plots → AUC → fit pipeline. Tables are written as `timeseries/Pos{n}/ch{n}.csv` and `.xlsx`.
+2. **Analyze** (`notebooks/analyze.ipynb`): Config cell sets `WORKSPACE`, `INTERVAL_MINUTES`, and `SLIDE_MAPPING` — no `assay.json`. Unsegmented `timeseries` → plots → AUC → fit. Tables: `timeseries/Pos{n}/ch{n}.csv` (columns: `roi`, `t`, `area`, `background`, `sum`, `corrected`).
 
 Nontechnical path while Studio is still in dev: Aligner → these notebooks. Power users/agents often crop here (or `lisca-crop`) then run `transfection` analysis separately.
 

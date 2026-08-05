@@ -22,7 +22,7 @@ from pyama.core.export import parallel_xlsx_path
 
 
 
-OUTPUT_COLUMNS = ("slide_channel", "pos", "roi", "t", "area", "background", "intensity", "corrected")
+OUTPUT_COLUMNS = ("roi", "t", "area", "background", "sum", "corrected")
 CsvWrittenCallback = Callable[[int, Path, int], None]
 
 
@@ -45,7 +45,7 @@ def default_position_timeseries_csv_path(
 
 
 def simplify_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    return df.loc[:, list(OUTPUT_COLUMNS)].sort_values(['pos', 'roi', 't']).reset_index(drop=True)
+    return df.loc[:, list(OUTPUT_COLUMNS)].sort_values(["roi", "t"]).reset_index(drop=True)
 
 
 def _run_position_metrics(
@@ -65,7 +65,6 @@ def _run_position_metrics(
     metrics_df = compute_timeseries_metrics(
         pos_dir,
         index,
-        slide_channel=slide_channel,
         channel=signal_channel,
     )
     return (slide_channel, signal_channel, resolved_pos, metrics_df)

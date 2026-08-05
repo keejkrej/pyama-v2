@@ -56,17 +56,6 @@ def crop_position_worker_count(position_count: int) -> int:
     return max(1, min(position_count, max_workers))
 
 
-def _source_kind(path: Path) -> str:
-    suffix = path.suffix.lower()
-    if suffix == ".nd2":
-        return "nd2"
-    if suffix == ".czi":
-        return "czi"
-    if suffix in {".tif", ".tiff"}:
-        return "tif"
-    raise ValueError(f"Unsupported source format for crop: {path}")
-
-
 def _crop_frame(frame: np.ndarray, bbox: RoiBbox) -> np.ndarray:
     array = np.asarray(frame)
     if array.ndim != 2:
@@ -78,7 +67,6 @@ def _write_index(
     *,
     output_dir: Path,
     pos: int,
-    source_path: Path,
     time_count: int,
     channel_count: int,
     z_count: int,
@@ -93,19 +81,16 @@ def _write_index(
     index = {
         "position": pos,
         "axisOrder": "TCZYX",
-        "pageOrder": ["t", "c", "z"],
         "timeCount": time_count,
         "channelCount": channel_count,
         "zCount": z_count,
         # Source acquisition indices for each T plane (may skip frames when downsampled).
         "timeIndices": resolved_times,
-        "source": {"kind": _source_kind(source_path), "path": str(source_path.resolve())},
         "rois": [
             {
                 "roi": bbox.roi,
                 "fileName": f"Roi{bbox.roi}.tif",
                 "bbox": {"roi": bbox.roi, "x": bbox.x, "y": bbox.y, "w": bbox.w, "h": bbox.h},
-                "shape": [time_count, channel_count, z_count, bbox.h, bbox.w],
             }
             for bbox in bboxes
         ],
@@ -256,7 +241,6 @@ def _crop_position_with_reader(
         _write_index(
             output_dir=staging_dir,
             pos=pos,
-            source_path=source,
             time_count=len(time_indices),
             channel_count=len(channel_indices),
             z_count=len(z_indices),

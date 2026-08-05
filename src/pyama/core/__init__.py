@@ -42,6 +42,11 @@ from pyama.core.slide import (
     validate_slide_mapping,
     write_slide_mapping,
 )
+from pyama.core.timeseries import (
+    parse_timeseries_path,
+    resolve_slide_channel,
+    resolve_slide_channel_from_path,
+)
 from pyama.core.workspace import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
@@ -82,10 +87,13 @@ __all__ = [
     "parse_position_token",
     "parse_quartiles",
     "parse_slide_mapping_spec",
+    "parse_timeseries_path",
     "position_dir",
     "quantile_column_name",
     "read_position_index",
     "read_roi_stack",
+    "resolve_slide_channel",
+    "resolve_slide_channel_from_path",
     "resolve_slide_path",
     "roi_frame_2d",
     "serialize_slide_mapping",
