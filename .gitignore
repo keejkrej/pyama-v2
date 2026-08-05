@@ -40,3 +40,6 @@ __pycache__/
 
 # Jupyter / analysis outputs
 .ipynb_checkpoints/
+*.ipynb
+!**/analyze.ipynb
+!**/crop.ipynb
