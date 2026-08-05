@@ -9,6 +9,9 @@ from pyama.core.export import write_csv_and_parallel_xlsx
 from pyama.core.mask import default_mask_path, read_mask_stack
 from pyama.core.roi import PositionIndex, read_roi_stack, roi_frame_2d
 
+# When segment masks are absent: estimate background from the ROI crop.
+UNMASKED_BACKGROUND_QUANTILE = 0.1
+
 def quantile_column_name(quartile: float) -> str:
     quartile_pct = quartile * 100.0
     if abs(quartile_pct - round(quartile_pct)) > 1e-9:
@@ -103,6 +106,7 @@ def compute_masked_roi_metrics(
             mask_channel=mask_channel,
             roi_file_name=roi.file_name,
         )
+        mask_stack: np.ndarray | None
         if mask_path.is_file():
             mask_stack = read_mask_stack(
                 mask_path,
@@ -110,20 +114,27 @@ def compute_masked_roi_metrics(
                 frame_shape=frame_shape,
             )
         else:
-            # No segment masks: treat the full ROI as foreground (background=0).
-            mask_stack = np.ones((index.time_count, *frame_shape), dtype=bool)
+            mask_stack = None
 
         for timepoint in range(index.time_count):
             frame = np.asarray(
                 roi_frame_2d(stack, index.axis_order, timepoint=timepoint, channel=channel),
                 dtype=np.float64,
             )
-            mask = mask_stack[timepoint]
-            foreground = frame[mask]
-            background_pixels = frame[~mask]
-            area = int(mask.sum())
-            intensity = float(foreground.sum(dtype=np.float64)) if area else 0.0
-            background = float(background_pixels.mean(dtype=np.float64)) if background_pixels.size else 0.0
+            if mask_stack is not None:
+                mask = mask_stack[timepoint]
+                foreground = frame[mask]
+                background_pixels = frame[~mask]
+                area = int(mask.sum())
+                intensity = float(foreground.sum(dtype=np.float64)) if area else 0.0
+                background = (
+                    float(background_pixels.mean(dtype=np.float64)) if background_pixels.size else 0.0
+                )
+            else:
+                # No segment masks: full ROI as foreground; bg = crop 10th percentile.
+                area = int(frame.size)
+                intensity = float(frame.sum(dtype=np.float64))
+                background = float(np.quantile(frame, UNMASKED_BACKGROUND_QUANTILE, method="linear"))
             rows.append(
                 {
                     "pos": index.position,

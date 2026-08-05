@@ -99,7 +99,14 @@ def write_auc_csv(df: pd.DataFrame, output_csv: Path) -> None:
 
 
 def format_written_auc_csv_message(output_csv: Path) -> str:
-    return f"Wrote AUC CSV: {output_csv}\nWrote AUC XLSX: {parallel_xlsx_path(output_csv)}"
+    output_xlsx = parallel_xlsx_path(output_csv)
+    message = f"Wrote AUC CSV: {output_csv}"
+    if output_xlsx.is_file():
+        message += f"\nWrote AUC XLSX: {output_xlsx}"
+    else:
+        message += f"\nSkipped AUC XLSX (exceeds Excel row limit): {output_xlsx}"
+    return message
+
 
 
 def run_auc(*, workspace: Path, interval: float) -> Path:

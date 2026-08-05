@@ -465,7 +465,14 @@ def write_fit_csv(df: pd.DataFrame, output_csv: Path) -> None:
 
 
 def format_written_fit_csv_message(output_csv: Path) -> str:
-    return f"Wrote fit CSV: {output_csv}\nWrote fit XLSX: {parallel_xlsx_path(output_csv)}"
+    output_xlsx = parallel_xlsx_path(output_csv)
+    message = f"Wrote fit CSV: {output_csv}"
+    if output_xlsx.is_file():
+        message += f"\nWrote fit XLSX: {output_xlsx}"
+    else:
+        message += f"\nSkipped fit XLSX (exceeds Excel row limit): {output_xlsx}"
+    return message
+
 
 
 def run_fit(
