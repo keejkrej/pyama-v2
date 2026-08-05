@@ -158,10 +158,11 @@ def subplot_title(
     csv_path: Path,
     trace_count: int | None = None,
     *,
+    df: pd.DataFrame | None = None,
     slide_channel_names: dict[int, str] | None = None,
 ) -> str:
     names = slide_channel_names or {}
-    sc = auc.parse_slide_channel(csv_path)
+    sc = auc.parse_slide_channel(csv_path, df)
     if sc is not None and sc in names:
         label = names[sc]
     elif sc is not None:
@@ -180,10 +181,12 @@ def trace_group_columns(df) -> list[str]:
     return columns
 
 
-def trace_naming_haystack(csv_path: Path, slide_channel_names: dict[int, str]) -> str:
+def trace_naming_haystack(
+    csv_path: Path, slide_channel_names: dict[int, str], df: pd.DataFrame | None = None
+) -> str:
     """Text used to infer fluor colors (filename, stem, optional slide channel label)."""
     parts = [csv_path.name, csv_path.stem]
-    sc = auc.parse_slide_channel(csv_path)
+    sc = auc.parse_slide_channel(csv_path, df)
     if sc is not None and sc in slide_channel_names:
         parts.append(slide_channel_names[sc])
     return " ".join(parts)
@@ -206,13 +209,17 @@ def write_subplot_grid(
 
     for index, (ax, (csv_path, df)) in enumerate(zip(axes_flat, panels)):
         trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
-            trace_naming_haystack(csv_path, slide_channel_names)
+            trace_naming_haystack(csv_path, slide_channel_names, df)
         )
         trace_groups = df.groupby(trace_group_columns(df), sort=True, dropna=False)
         for _, roi_df in trace_groups:
             t_minutes = roi_df["t"].astype(float).to_numpy(dtype=float) * interval
             ax.plot(t_minutes, roi_df[y_column], color=trace_color, alpha=trace_alpha)
-        ax.set_title(subplot_title(csv_path, trace_groups.ngroups, slide_channel_names=slide_channel_names))
+        ax.set_title(
+            subplot_title(
+                csv_path, trace_groups.ngroups, df=df, slide_channel_names=slide_channel_names
+            )
+        )
         ax.set_xlabel("minutes")
         ax.set_ylabel(y_label)
         y_low, y_high = ylim_fn(index)

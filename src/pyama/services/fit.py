@@ -348,7 +348,7 @@ def compute_fit_table(
     tasks: list[tuple[int | None, dict[str, int], list[float], list[float], float]] = []
     for csv_path in timeseries_csvs:
         df = load_timeseries_csv(csv_path)
-        slide_channel = auc.parse_slide_channel(csv_path)
+        slide_channel = auc.parse_slide_channel(csv_path, df)
         group_columns = [column for column in auc.GROUP_COLUMNS if column in df.columns]
         if not group_columns:
             raise ValueError(f"{csv_path} has no supported grouping columns: {auc.GROUP_COLUMNS}")

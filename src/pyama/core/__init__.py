@@ -13,15 +13,9 @@ from pyama.core.constants import (
     RESULTS_DIRNAME,
     TIMESERIES_DIRNAME,
 )
-from pyama.core.mask import (
-    default_mask_path,
-    position_mask_dir,
-    read_mask_stack,
-    workspace_mask_dir,
-)
 from pyama.core.metrics import (
-    compute_masked_roi_metrics,
     compute_roi_metrics,
+    compute_timeseries_metrics,
     load_timeseries_csv,
     parse_quartiles,
     quantile_column_name,
@@ -36,7 +30,6 @@ from pyama.core.roi import (
     roi_frame_2d,
     validate_channel_index,
 )
-from pyama.core.segment import compute_roi_mask_stack, write_mask_tif
 from pyama.core.slide import (
     SlideChannelMapping,
     SlideMapping,
@@ -75,10 +68,8 @@ __all__ = [
     "SlideMapping",
     "boxplot_tick_labels",
     "boxplot_x_axis_label",
-    "compute_masked_roi_metrics",
-    "compute_roi_mask_stack",
+    "compute_timeseries_metrics",
     "compute_roi_metrics",
-    "default_mask_path",
     "discover_bbox_positions",
     "discover_timeseries_csvs",
     "infer_workspace_for_plot_csv",
@@ -92,9 +83,7 @@ __all__ = [
     "parse_quartiles",
     "parse_slide_mapping_spec",
     "position_dir",
-    "position_mask_dir",
     "quantile_column_name",
-    "read_mask_stack",
     "read_position_index",
     "read_roi_stack",
     "resolve_slide_path",
@@ -106,11 +95,9 @@ __all__ = [
     "validate_channel_index",
     "validate_slide_mapping",
     "workspace_bbox_csv_path",
-    "workspace_mask_dir",
     "workspace_results_dir",
     "workspace_roi_pos_dir",
     "workspace_timeseries_dir",
-    "write_mask_tif",
     "write_metrics_csv",
     "write_slide_mapping",
 ]

@@ -1,6 +1,6 @@
 # Pyama
 
-Desktop app and Python analysis package for microscopy ROI workflows. Pyama aligns a grid over ND2/CZI frames and writes workspace artifacts; the Python package consumes those artifacts for crop, segment, timeseries, AUC, and fit.
+Desktop app and Python analysis package for microscopy ROI workflows. Pyama aligns a grid over ND2/CZI frames and writes workspace artifacts; `crop.ipynb` performs ROI cropping and the analysis notebook runs unsegmented timeseries, AUC, and fit.
 
 **With LiSCA:** Aligner is the light grid/bbox shell (short-lived webapp). **ROI crop’s Python goal source is this repo** (`pyama.services.crop`, `notebooks/crop.ipynb`). Transfection analysis CLI for agents often continues in `lisca-transfection-assay`. Studio owns end-to-end for nontechnical users when ready; until then Aligner + these notebooks is the less error-prone path (no long-running jobs in the align webapp).
 
@@ -66,6 +66,7 @@ _Avoid_: crop (as the noun for the region itself — use for the crop step)
 
 **Timeseries**:
 Per-ROI intensity (or derived) values across time.
+Tables are stored per position and signal channel at `timeseries/Pos{n}/ch{n}.csv` with a parallel `.xlsx` file.
 _Avoid_: trace, curve (as primary term)
 
 **AUC**:

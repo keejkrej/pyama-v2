@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pandas as pd
@@ -45,11 +44,13 @@ def default_output_csv_path(
     return timeseries_csvs[0].with_name("auc.csv").resolve()
 
 
-def parse_slide_channel(csv_path: Path) -> int | None:
-    match = re.fullmatch(r"sc(\d+)_ch\d+", csv_path.stem)
-    if match is None:
+def parse_slide_channel(csv_path: Path, df: pd.DataFrame | None = None) -> int | None:
+    if df is None or "slide_channel" not in df.columns or df.empty:
         return None
-    return int(match.group(1))
+    values = df["slide_channel"].dropna().unique()
+    if len(values) != 1:
+        raise ValueError(f"{csv_path} must contain exactly one slide_channel")
+    return int(values[0])
 
 
 def integrate_trace(trace_df: pd.DataFrame, *, interval: float) -> float:
@@ -68,7 +69,7 @@ def compute_auc_table(timeseries_csvs: list[Path], *, interval: float) -> pd.Dat
     rows: list[dict[str, object]] = []
     for csv_path in timeseries_csvs:
         df = load_timeseries_csv(csv_path)
-        slide_channel = parse_slide_channel(csv_path)
+        slide_channel = parse_slide_channel(csv_path, df)
         group_columns = [column for column in GROUP_COLUMNS if column in df.columns]
         if not group_columns:
             raise ValueError(f"{csv_path} has no supported grouping columns: {GROUP_COLUMNS}")

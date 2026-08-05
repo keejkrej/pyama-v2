@@ -231,9 +231,9 @@ def write_fitted_trace_grid(
 
     for ax, csv_path in zip(axes_flat, timeseries_csvs):
         df = load_timeseries_csv(csv_path)
-        slide_channel = auc.parse_slide_channel(csv_path)
+        slide_channel = auc.parse_slide_channel(csv_path, df)
         trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
-            plot_timeseries.trace_naming_haystack(csv_path, slide_channel_names)
+            plot_timeseries.trace_naming_haystack(csv_path, slide_channel_names, df)
         )
         matched_traces = 0
         trace_groups = df.groupby(plot_timeseries.trace_group_columns(df), sort=True, dropna=False)
@@ -255,7 +255,9 @@ def write_fitted_trace_grid(
             plotted_trace_count += 1
 
         ax.set_title(
-            plot_timeseries.subplot_title(csv_path, matched_traces, slide_channel_names=slide_channel_names)
+            plot_timeseries.subplot_title(
+                csv_path, matched_traces, df=df, slide_channel_names=slide_channel_names
+            )
         )
         ax.set_xlabel("minutes")
         ax.set_ylabel("corrected intensity")
