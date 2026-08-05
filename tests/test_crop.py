@@ -49,7 +49,6 @@ def test_frame_major_crop_reads_each_plane_once(tmp_path: Path) -> None:
         ],
         info=info,
         read_frame=read_frame,
-        force=False,
         times=None,
         channels=None,
         z_slices=None,
