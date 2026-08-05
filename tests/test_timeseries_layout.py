@@ -6,12 +6,70 @@ import pytest
 from pyama.core import discover_timeseries_csvs, resolve_slide_channel, validate_slide_mapping
 from pyama.core.roi import read_position_index
 from pyama.services.auc import compute_auc_table
-from pyama.services.timeseries import default_position_timeseries_csv_path
+from pyama.services import timeseries as timeseries_service
+from pyama.services.timeseries import (
+    default_position_timeseries_csv_path,
+    run_slide_timeseries,
+)
 
 
 def test_position_timeseries_path() -> None:
     path = default_position_timeseries_csv_path(Path("/workspace"), 7, 2)
     assert path == Path("/workspace/timeseries/Pos7/ch2.csv")
+
+
+def test_writes_csv_as_each_position_finishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    order: list[tuple[str, int]] = []
+    monkeypatch.setattr(timeseries_service.os, "cpu_count", lambda: 1)
+
+    def fake_run_position_metrics(
+        workspace: Path,
+        *,
+        slide_channel: int,
+        signal_channel: int,
+        resolved_pos: int,
+    ) -> tuple[int, int, int, pd.DataFrame]:
+        order.append(("compute", resolved_pos))
+        df = pd.DataFrame(
+            {
+                "roi": [0],
+                "t": [0],
+                "area": [1],
+                "background": [0.0],
+                "sum": [1.0],
+                "corrected": [1.0],
+            }
+        )
+        return (slide_channel, signal_channel, resolved_pos, df)
+
+    monkeypatch.setattr(
+        "pyama.services.timeseries._run_position_metrics",
+        fake_run_position_metrics,
+    )
+
+    def on_csv_written(position: int, path: Path, rows: int) -> None:
+        order.append(("write", position))
+        assert path.is_file()
+        assert rows == 1
+
+    mapping = validate_slide_mapping(
+        {0: {"positions": [0, 1], "signal_channel": 1, "sample_name": "sample"}}
+    )
+    result = run_slide_timeseries(
+        tmp_path,
+        mapping=mapping,
+        on_csv_written=on_csv_written,
+    )
+
+    assert order == [
+        ("compute", 0),
+        ("write", 0),
+        ("compute", 1),
+        ("write", 1),
+    ]
+    assert [position for position, _path, _rows in result.written_outputs] == [0, 1]
 
 
 def test_discovers_position_channel_tables(tmp_path: Path) -> None:

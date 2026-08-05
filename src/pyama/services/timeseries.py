@@ -106,10 +106,7 @@ def run_slide_timeseries(
     *,
     mapping: SlideMapping,
     on_csv_written: CsvWrittenCallback | None = None,
-    jobs: int = 1,
 ) -> SlideTimeseriesRunResult:
-    if jobs < 1:
-        raise ValueError(f"jobs must be >= 1, got {jobs}")
     workspace = workspace.resolve()
     slide_positions = validate_slide_mapping(mapping)
     position_tasks: list[tuple[str, int, int, int]] = [
@@ -127,33 +124,22 @@ def run_slide_timeseries(
         raise ValueError("Slide mapping defines no valid positions")
 
     skipped_positions: dict[int, list[int]] = defaultdict(list)
-    rows: list[tuple[int, int, int, pd.DataFrame | None]] = []
-
-    if jobs == 1 or len(position_tasks) <= 1:
-        for ws_str, slide_channel, signal_channel, resolved_pos in position_tasks:
-            rows.append(_run_position_metrics(
-                Path(ws_str),
-                slide_channel=slide_channel,
-                signal_channel=signal_channel,
-                resolved_pos=resolved_pos,
-            ))
-    else:
-        max_workers = min(jobs, len(position_tasks), os.cpu_count() or jobs)
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(_position_timeseries_task, t) for t in position_tasks]
-            for fut in as_completed(futures):
-                rows.append(fut.result())
-
     written_outputs: list[tuple[int, Path, int]] = []
     signal_channels = {
         (slide_channel, position): entry.signal_channel
         for slide_channel, entry in slide_positions.items()
         for position in entry.positions
     }
-    for slide_channel, _signal_channel, position, metrics_df in sorted(rows, key=lambda row: row[2]):
+
+    def consume_result(
+        slide_channel: int,
+        _signal_channel: int,
+        position: int,
+        metrics_df: pd.DataFrame | None,
+    ) -> None:
         if metrics_df is None:
             skipped_positions[slide_channel].append(position)
-            continue
+            return
         output_csv, row_count = _write_position_csv(
             workspace,
             position=position,
@@ -163,6 +149,23 @@ def run_slide_timeseries(
         written_outputs.append((position, output_csv, row_count))
         if on_csv_written is not None:
             on_csv_written(position, output_csv, row_count)
+
+    max_workers = max(1, min(len(position_tasks), os.cpu_count() or 1))
+    if max_workers == 1:
+        for ws_str, slide_channel, signal_channel, resolved_pos in position_tasks:
+            consume_result(
+                *_run_position_metrics(
+                    Path(ws_str),
+                    slide_channel=slide_channel,
+                    signal_channel=signal_channel,
+                    resolved_pos=resolved_pos,
+                )
+            )
+    else:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(_position_timeseries_task, t) for t in position_tasks]
+            for fut in as_completed(futures):
+                consume_result(*fut.result())
 
     if not written_outputs:
         if skipped_positions:
@@ -176,9 +179,13 @@ def run_slide_timeseries(
             )
         raise ValueError("Slide mapping defines no valid positions")
 
+    written_outputs.sort(key=lambda item: item[0])
     return SlideTimeseriesRunResult(
         written_outputs=written_outputs,
-        skipped_positions=skipped_positions,
+        skipped_positions={
+            slide_channel: sorted(positions)
+            for slide_channel, positions in sorted(skipped_positions.items())
+        },
     )
 
 
@@ -213,11 +220,9 @@ def run_timeseries(
     workspace: Path,
     mapping: SlideMapping,
     on_csv_written: CsvWrittenCallback | None = None,
-    jobs: int = 1,
 ) -> SlideTimeseriesRunResult:
     return run_slide_timeseries(
         workspace,
         mapping=mapping,
         on_csv_written=on_csv_written,
-        jobs=jobs,
     )

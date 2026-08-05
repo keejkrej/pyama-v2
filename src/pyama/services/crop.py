@@ -41,19 +41,8 @@ class CropRunResult:
 
 
 def crop_position_worker_count(position_count: int) -> int:
-    """Choose parallel position workers, matching lisca's crop scheduler."""
-    available = os.cpu_count() or 1
-    raw = os.environ.get("PYAMA_CROP_MAX_WORKERS")
-    if raw is not None:
-        try:
-            max_workers = int(raw)
-        except ValueError:
-            max_workers = available
-        if max_workers <= 0:
-            max_workers = available
-    else:
-        max_workers = available
-    return max(1, min(position_count, max_workers))
+    """Choose parallel position workers from available CPU cores."""
+    return max(1, min(position_count, os.cpu_count() or 1))
 
 
 def _crop_frame(frame: np.ndarray, bbox: RoiBbox) -> np.ndarray:
