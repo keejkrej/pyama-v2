@@ -18,6 +18,28 @@ def test_position_timeseries_path() -> None:
     assert path == Path("/workspace/timeseries/Pos7/ch2.csv")
 
 
+def test_group_panels_by_slide_channel_aggregates_positions(tmp_path: Path) -> None:
+    from pyama.services.plot_timeseries import group_panels_by_slide_channel
+
+    mapping = validate_slide_mapping(
+        {
+            0: {"positions": [0, 1], "signal_channel": 1, "sample_name": "A"},
+            1: {"positions": [2], "signal_channel": 1, "sample_name": "B"},
+        }
+    )
+    panels: list[tuple[Path, pd.DataFrame]] = []
+    for pos in (0, 1, 2):
+        csv_path = tmp_path / f"Pos{pos}" / "ch1.csv"
+        csv_path.parent.mkdir(parents=True)
+        df = pd.DataFrame({"roi": [0], "t": [0], "corrected": [1.0]})
+        panels.append((csv_path, df))
+
+    sample_panels = group_panels_by_slide_channel(panels, mapping)
+    assert [slide_channel for slide_channel, _frames in sample_panels] == [0, 1]
+    assert [len(frames) for _slide_channel, frames in sample_panels] == [2, 1]
+    assert "pos" in sample_panels[0][1][0][1].columns
+
+
 def test_writes_csv_as_each_position_finishes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -12,7 +12,7 @@ import pandas as pd
 
 from pyama import core as paths
 from pyama import core as plot_layout
-from pyama.services import auc, plot_auc, plot_timeseries
+from pyama.services import plot_auc, plot_timeseries
 from pyama.core import (
     boxplot_tick_labels,
     boxplot_x_axis_label,
@@ -224,7 +224,9 @@ def write_fitted_trace_grid(
     slide_channel_names: dict[int, str],
     mapping: SlideMapping,
 ) -> None:
-    rows = math.ceil(len(timeseries_csvs) / columns)
+    panels = [(csv_path, load_timeseries_csv(csv_path)) for csv_path in timeseries_csvs]
+    sample_panels = plot_timeseries.group_panels_by_slide_channel(panels, mapping)
+    rows = math.ceil(len(sample_panels) / columns)
     fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
     axes_flat = axes.flatten()
     fit_lookup = (
@@ -234,44 +236,47 @@ def write_fitted_trace_grid(
     )
     plotted_trace_count = 0
 
-    for ax, csv_path in zip(axes_flat, timeseries_csvs):
-        df = load_timeseries_csv(csv_path)
-        slide_channel = auc.parse_slide_channel(csv_path, mapping)
+    for ax, (slide_channel, frames) in zip(axes_flat, sample_panels):
         trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
-            plot_timeseries.trace_naming_haystack(csv_path, slide_channel_names, mapping)
+            plot_timeseries.trace_naming_haystack(slide_channel, frames, slide_channel_names)
         )
         matched_traces = 0
-        trace_groups = df.groupby(plot_timeseries.trace_group_columns(df), sort=True, dropna=False)
-        for group_key, trace_df in trace_groups:
-            if not isinstance(group_key, tuple):
-                group_key = (group_key,)
-            group_values = dict(zip(plot_timeseries.trace_group_columns(df), group_key, strict=True))
-            pos = int(group_values.get("pos", 0))
-            roi = int(group_values["roi"])
-            lookup_key = (slide_channel, pos, roi)
-            if lookup_key not in fit_lookup.index:
-                continue
+        sample_values: list[np.ndarray] = []
+        for _csv_path, df in frames:
+            sample_values.append(plot_timeseries.panel_values(df, "corrected"))
+            trace_groups = df.groupby(plot_timeseries.trace_group_columns(df), sort=True, dropna=False)
+            for group_key, trace_df in trace_groups:
+                if not isinstance(group_key, tuple):
+                    group_key = (group_key,)
+                group_values = dict(
+                    zip(plot_timeseries.trace_group_columns(df), group_key, strict=True)
+                )
+                pos = int(group_values.get("pos", 0))
+                roi = int(group_values["roi"])
+                lookup_key = (slide_channel, pos, roi)
+                if lookup_key not in fit_lookup.index:
+                    continue
 
-            fit_row = fit_lookup.loc[lookup_key]
-            times_minutes = trace_df["t"].astype(float).to_numpy(dtype=float) * interval
-            predicted = fitted_trace_values(times_minutes, fit_row)
-            ax.plot(times_minutes, predicted, color=trace_color, alpha=trace_alpha)
-            matched_traces += 1
-            plotted_trace_count += 1
+                fit_row = fit_lookup.loc[lookup_key]
+                times_minutes = trace_df["t"].astype(float).to_numpy(dtype=float) * interval
+                predicted = fitted_trace_values(times_minutes, fit_row)
+                ax.plot(times_minutes, predicted, color=trace_color, alpha=trace_alpha)
+                matched_traces += 1
+                plotted_trace_count += 1
 
         ax.set_title(
             plot_timeseries.subplot_title(
-                csv_path, matched_traces, slide_channel_names=slide_channel_names, mapping=mapping
+                slide_channel, matched_traces, slide_channel_names=slide_channel_names
             )
         )
         ax.set_xlabel("minutes")
         ax.set_ylabel("corrected intensity")
         y_low, y_high = plot_timeseries.percentile_ylim(
-            plot_timeseries.panel_values(df, "corrected")
+            np.concatenate(sample_values) if sample_values else np.array([])
         )
         ax.set_ylim(y_low, y_high)
 
-    for ax in axes_flat[len(timeseries_csvs):]:
+    for ax in axes_flat[len(sample_panels):]:
         ax.axis("off")
 
     if plotted_trace_count == 0:
