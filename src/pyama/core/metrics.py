@@ -6,8 +6,10 @@ import numpy as np
 import pandas as pd
 
 from pyama.core.export import write_csv_and_parallel_xlsx
-from pyama.core.mask import default_mask_path, read_mask_stack
 from pyama.core.roi import PositionIndex, read_roi_stack, roi_frame_2d
+
+# Estimate background from the ROI's 10th intensity percentile.
+UNMASKED_BACKGROUND_QUANTILE = 0.1
 
 def quantile_column_name(quartile: float) -> str:
     quartile_pct = quartile * 100.0
@@ -46,9 +48,9 @@ def compute_roi_metrics(
             raise ValueError(f"Missing ROI TIFF referenced by index.json: {roi_path}")
 
         stack = read_roi_stack(roi_path, roi.shape)
-        for timepoint in range(index.time_count):
+        for stack_t in range(index.time_count):
             patch = np.asarray(
-                roi_frame_2d(stack, index.axis_order, timepoint=timepoint, channel=channel),
+                roi_frame_2d(stack, index.axis_order, timepoint=stack_t, channel=channel),
                 dtype=np.uint64,
             )
             quantile_values = np.quantile(patch, quartiles, method="linear")
@@ -61,7 +63,7 @@ def compute_roi_metrics(
                 {
                     "pos": index.position,
                     "channel": channel,
-                    "t": timepoint,
+                    "t": index.time_indices[stack_t],
                     "roi": roi.roi,
                     "x": roi.x,
                     "y": roi.y,
@@ -78,14 +80,11 @@ def compute_roi_metrics(
     return pd.DataFrame(rows).sort_values(["roi", "t"]).reset_index(drop=True)
 
 
-def compute_masked_roi_metrics(
-    workspace: Path,
+def compute_timeseries_metrics(
     pos_dir: Path,
     index: PositionIndex,
     *,
-    slide_channel: int,
     channel: int,
-    mask_channel: int,
 ) -> pd.DataFrame:
     rows: list[dict[str, int | float | None]] = []
     for roi in index.rois:
@@ -94,45 +93,22 @@ def compute_masked_roi_metrics(
             raise ValueError(f"Missing ROI TIFF referenced by index.json: {roi_path}")
 
         stack = read_roi_stack(roi_path, roi.shape)
-        first_frame = roi_frame_2d(stack, index.axis_order, timepoint=0, channel=channel)
-        mask_path = default_mask_path(
-            workspace,
-            position=index.position,
-            slide_channel=slide_channel,
-            mask_channel=mask_channel,
-            roi_file_name=roi.file_name,
-        )
-        mask_stack = read_mask_stack(
-            mask_path,
-            time_count=index.time_count,
-            frame_shape=tuple(int(value) for value in first_frame.shape),
-        )
-
-        for timepoint in range(index.time_count):
+        for stack_t in range(index.time_count):
             frame = np.asarray(
-                roi_frame_2d(stack, index.axis_order, timepoint=timepoint, channel=channel),
+                roi_frame_2d(stack, index.axis_order, timepoint=stack_t, channel=channel),
                 dtype=np.float64,
             )
-            mask = mask_stack[timepoint]
-            foreground = frame[mask]
-            background_pixels = frame[~mask]
-            area = int(mask.sum())
-            intensity = float(foreground.sum(dtype=np.float64)) if area else 0.0
-            background = float(background_pixels.mean(dtype=np.float64)) if background_pixels.size else 0.0
+            area = int(frame.size)
+            sum_intensity = float(frame.sum(dtype=np.float64))
+            background = float(np.quantile(frame, UNMASKED_BACKGROUND_QUANTILE, method="linear"))
             rows.append(
                 {
-                    "pos": index.position,
-                    "channel": channel,
-                    "t": timepoint,
                     "roi": roi.roi,
-                    "x": roi.x,
-                    "y": roi.y,
-                    "w": roi.w,
-                    "h": roi.h,
+                    "t": index.time_indices[stack_t],
                     "area": area,
                     "background": background,
-                    "intensity": intensity,
-                    "corrected": intensity - area * background,
+                    "sum": sum_intensity,
+                    "corrected": sum_intensity - area * background,
                 }
             )
 
@@ -159,5 +135,3 @@ def load_timeseries_csv(csv_path: Path) -> pd.DataFrame:
     if "pos" in df.columns:
         sort_columns = ["pos", *sort_columns]
     return df.sort_values(sort_columns).reset_index(drop=True)
-
-

@@ -1,25 +1,17 @@
 {
   "name": "pyama-v2",
   "private": true,
-  "packageManager": "bun@1.2.22",
-  "workspaces": [
-    "apps/pyama"
-  ],
+  "packageManager": "pnpm@10.7.1",
   "scripts": {
     "build": "vp run -r build",
     "build:pyama": "vp run -F pyama build",
-    "dev:pyama": "bun run --cwd apps/pyama dev",
+    "dev:pyama": "pnpm --dir apps/pyama dev",
     "release:pyama": "vp run -F pyama release",
     "test": "vp run -r test",
     "typecheck": "vp run -r typecheck",
     "check:tauri": "vp run -F pyama check:tauri",
     "check:rust": "cargo check --workspace",
     "check": "vp run -r typecheck && cargo check --workspace"
-  },
-  "catalog": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
-    "vitest": "4.1.10",
-    "vite-plus": "0.2.4"
   },
   "overrides": {
     "vite": "catalog:",

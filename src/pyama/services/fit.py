@@ -12,6 +12,7 @@ import pandas as pd
 from pyama import core as paths
 from pyama.core import load_timeseries_csv
 from pyama.core.export import parallel_xlsx_path, write_csv_and_parallel_xlsx
+from pyama.core.slide import SlideMapping
 from pyama.services import auc
 
 
@@ -45,13 +46,19 @@ class FitResult:
     expression_amplitude: float
 
 
-def integrate_fit_csvs(timeseries_csvs: list[Path], *, interval: float, output_csv: Path | None) -> Path:
+def integrate_fit_csvs(
+    timeseries_csvs: list[Path],
+    *,
+    interval: float,
+    output_csv: Path | None,
+    mapping: SlideMapping,
+) -> Path:
     return run_fit_with_jobs(
         timeseries_csvs,
         interval=interval,
         output_csv=output_csv,
         max_onset_minutes=0.0,
-        jobs=1,
+        mapping=mapping,
     )
 
 
@@ -61,21 +68,19 @@ def run_fit_with_jobs(
     interval: float,
     output_csv: Path | None,
     max_onset_minutes: float | None,
-    jobs: int,
+    mapping: SlideMapping,
 ) -> Path:
     if interval <= 0:
         raise ValueError(f"--interval must be > 0, got {interval}")
     if max_onset_minutes is not None and max_onset_minutes < 0:
         raise ValueError(f"--max-onset-minutes must be >= 0, got {max_onset_minutes}")
-    if jobs < 1:
-        raise ValueError(f"--jobs must be >= 1, got {jobs}")
 
     resolved_csvs = sorted((csv_path.resolve() for csv_path in timeseries_csvs), key=lambda path: path.name)
     fit_df = compute_fit_table(
         resolved_csvs,
         interval=interval,
         max_onset_minutes=max_onset_minutes,
-        jobs=jobs,
+        mapping=mapping,
     )
     resolved_output_csv = default_output_csv_path(resolved_csvs, output_csv)
     write_fit_csv(fit_df, resolved_output_csv)
@@ -340,26 +345,26 @@ def compute_fit_table(
     *,
     interval: float,
     max_onset_minutes: float | None = 0.0,
-    jobs: int = 1,
+    mapping: SlideMapping,
 ) -> pd.DataFrame:
-    if jobs < 1:
-        raise ValueError(f"--jobs must be >= 1, got {jobs}")
-
     tasks: list[tuple[int | None, dict[str, int], list[float], list[float], float]] = []
     for csv_path in timeseries_csvs:
         df = load_timeseries_csv(csv_path)
-        slide_channel = auc.parse_slide_channel(csv_path)
-        group_columns = [column for column in auc.GROUP_COLUMNS if column in df.columns]
-        if not group_columns:
-            raise ValueError(f"{csv_path} has no supported grouping columns: {auc.GROUP_COLUMNS}")
+        slide_channel = auc.parse_slide_channel(csv_path, mapping)
+        position, _signal_channel = paths.parse_timeseries_path(csv_path)
+        if "pos" not in df.columns:
+            df = df.assign(pos=position)
+        if "roi" not in df.columns:
+            raise ValueError(f"{csv_path} is missing required column: roi")
 
-        for group_key, trace_df in df.groupby(group_columns, sort=True):
+        for group_key, trace_df in df.groupby(["pos", "roi"], sort=True):
             if not isinstance(group_key, tuple):
                 group_key = (group_key,)
+            pos, roi = group_key
             tasks.append(
                 (
                     slide_channel,
-                    {column: int(value) for column, value in zip(group_columns, group_key, strict=True)},
+                    {"pos": int(pos), "roi": int(roi)},
                     trace_df["t"].astype(float).tolist(),
                     trace_df["corrected"].astype(float).tolist(),
                     interval,
@@ -369,14 +374,13 @@ def compute_fit_table(
     if not tasks:
         raise ValueError("No fit rows produced")
 
-    first_pass_results = _run_fit_tasks(tasks, jobs=jobs, fixed_protein_decay_rate=None)
+    first_pass_results = _run_fit_tasks(tasks, fixed_protein_decay_rate=None)
     shared_protein_decay_rate = _pooled_protein_decay_rate(first_pass_results)
     if shared_protein_decay_rate is None:
         rows = [_failed_fit_row(slide_channel, group_values) for slide_channel, group_values, *_ in tasks]
     else:
         rows = _run_fit_tasks(
             tasks,
-            jobs=jobs,
             fixed_protein_decay_rate=shared_protein_decay_rate,
             max_onset_minutes=max_onset_minutes,
         )
@@ -389,15 +393,14 @@ def compute_fit_table(
 def _run_fit_tasks(
     tasks: list[tuple[int | None, dict[str, int], list[float], list[float], float]],
     *,
-    jobs: int,
     fixed_protein_decay_rate: float | None,
     max_onset_minutes: float | None = 0.0,
 ) -> list[dict[str, object]]:
-    if jobs == 1 or len(tasks) <= 1:
-        return [_fit_trace_task((task, fixed_protein_decay_rate, max_onset_minutes)) for task in tasks]
-
-    max_workers = min(jobs, len(tasks), os.cpu_count() or jobs)
+    max_workers = max(1, min(len(tasks), os.cpu_count() or 1))
     payloads = ((task, fixed_protein_decay_rate, max_onset_minutes) for task in tasks)
+    if max_workers == 1:
+        return [_fit_trace_task(payload) for payload in payloads]
+
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         return list(executor.map(_fit_trace_task, payloads))
 
@@ -465,7 +468,14 @@ def write_fit_csv(df: pd.DataFrame, output_csv: Path) -> None:
 
 
 def format_written_fit_csv_message(output_csv: Path) -> str:
-    return f"Wrote fit CSV: {output_csv}\nWrote fit XLSX: {parallel_xlsx_path(output_csv)}"
+    output_xlsx = parallel_xlsx_path(output_csv)
+    message = f"Wrote fit CSV: {output_csv}"
+    if output_xlsx.is_file():
+        message += f"\nWrote fit XLSX: {output_xlsx}"
+    else:
+        message += f"\nSkipped fit XLSX (exceeds Excel row limit): {output_xlsx}"
+    return message
+
 
 
 def run_fit(
@@ -473,8 +483,10 @@ def run_fit(
     workspace: Path,
     interval: float,
     max_onset_minutes: float = 0.0,
-    jobs: int = 1,
+    mapping: SlideMapping,
 ) -> Path:
+    """Fit traces; ``mapping`` comes from the notebook Config cell (not assay.json)."""
+    workspace = workspace.resolve()
     timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_timeseries_dir(workspace))
     results_dir = paths.workspace_results_dir(workspace)
     output_csv = default_output_csv_path(timeseries_csvs, None, results_dir=results_dir)
@@ -483,5 +495,5 @@ def run_fit(
         interval=interval,
         output_csv=output_csv,
         max_onset_minutes=max_onset_minutes,
-        jobs=jobs,
+        mapping=mapping,
     )

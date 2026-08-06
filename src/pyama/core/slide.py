@@ -8,7 +8,6 @@ from pathlib import Path
 class SlideChannelMapping:
     positions: list[int]
     signal_channel: int
-    mask_channel: int
     sample_name: str
 
 
@@ -90,7 +89,7 @@ def parse_slide_mapping_spec(
     for slide_channel, segment in enumerate(segments):
         if "@" not in segment or "#" not in segment:
             raise ValueError(
-                f"{source_label}: expected 'positions@signal_channel/mask_channel#sample_name', got {segment!r}"
+                f"{source_label}: expected 'positions@signal_channel#sample_name', got {segment!r}"
             )
 
         before_hash, sample_name = segment.rsplit("#", 1)
@@ -101,30 +100,16 @@ def parse_slide_mapping_spec(
         before_hash = before_hash.strip()
         if "@" not in before_hash:
             raise ValueError(
-                f"{source_label}: expected 'positions@signal_channel/mask_channel' before '#' ({segment!r})"
+                f"{source_label}: expected 'positions@signal_channel' before '#' ({segment!r})"
             )
         positions_str, channels_str = before_hash.rsplit("@", 1)
         positions_str, channels_str = positions_str.strip(), channels_str.strip()
-        if "/" not in channels_str:
-            raise ValueError(
-                f"{source_label}: expected both signal_channel and mask_channel separated by '/' "
-                f"for slide channel {slide_channel}"
-            )
-        signal_ch_str, mask_ch_str = (part.strip() for part in channels_str.split("/", 1))
-
         try:
-            signal_channel = int(signal_ch_str)
+            signal_channel = int(channels_str)
         except ValueError as exc:
             raise ValueError(
                 f"{source_label}: signal channel must be an integer for slide channel {slide_channel}"
             ) from exc
-        try:
-            mask_channel = int(mask_ch_str)
-        except ValueError as exc:
-            raise ValueError(
-                f"{source_label}: mask channel must be an integer for slide channel {slide_channel}"
-            ) from exc
-
         try:
             positions = parse_position_spec(positions_str)
         except ValueError as exc:
@@ -133,7 +118,6 @@ def parse_slide_mapping_spec(
         raw_mapping[slide_channel] = SlideChannelMapping(
             positions=positions,
             signal_channel=signal_channel,
-            mask_channel=mask_channel,
             sample_name=sample_name,
         )
 
@@ -159,7 +143,6 @@ def validate_slide_mapping(raw: object, *, source: Path | None = None) -> SlideM
         if isinstance(raw_entry, SlideChannelMapping):
             raw_positions = raw_entry.positions
             raw_signal_channel = raw_entry.signal_channel
-            raw_mask_channel = raw_entry.mask_channel
             raw_sample_name = raw_entry.sample_name
         else:
             if not isinstance(raw_entry, dict):
@@ -172,17 +155,12 @@ def validate_slide_mapping(raw: object, *, source: Path | None = None) -> SlideM
                 raise ValueError(
                     f"Slide channel {slide_channel} is missing required field 'signal_channel'"
                 )
-            if "mask_channel" not in raw_entry:
-                raise ValueError(
-                    f"Slide channel {slide_channel} is missing required field 'mask_channel'"
-                )
             if "sample_name" not in raw_entry:
                 raise ValueError(
                     f"Slide channel {slide_channel} is missing required field 'sample_name'"
                 )
             raw_positions = raw_entry["positions"]
             raw_signal_channel = raw_entry["signal_channel"]
-            raw_mask_channel = raw_entry["mask_channel"]
             raw_sample_name = raw_entry["sample_name"]
 
         if not isinstance(raw_positions, list):
@@ -195,12 +173,6 @@ def validate_slide_mapping(raw: object, *, source: Path | None = None) -> SlideM
             )
         if raw_signal_channel < 0:
             raise ValueError(f"Slide signal_channel must be non-negative, got {raw_signal_channel}")
-        if not isinstance(raw_mask_channel, int) or isinstance(raw_mask_channel, bool):
-            raise ValueError(
-                f"Slide mask_channel for channel {slide_channel} must be an integer, got {raw_mask_channel!r}"
-            )
-        if raw_mask_channel < 0:
-            raise ValueError(f"Slide mask_channel must be non-negative, got {raw_mask_channel}")
         if not isinstance(raw_sample_name, str):
             raise ValueError(
                 f"sample_name for slide channel {slide_channel} must be a string, got {raw_sample_name!r}"
@@ -223,7 +195,6 @@ def validate_slide_mapping(raw: object, *, source: Path | None = None) -> SlideM
         slide_positions[slide_channel] = SlideChannelMapping(
             positions=sorted(set(positions_list)),
             signal_channel=raw_signal_channel,
-            mask_channel=raw_mask_channel,
             sample_name=sample_name,
         )
 
@@ -243,7 +214,6 @@ def serialize_slide_mapping(mapping: SlideMapping) -> str:
         str(channel): {
             "positions": validated_mapping[channel].positions,
             "signal_channel": validated_mapping[channel].signal_channel,
-            "mask_channel": validated_mapping[channel].mask_channel,
             "sample_name": validated_mapping[channel].sample_name,
         }
         for channel in sorted(validated_mapping)
@@ -255,5 +225,4 @@ def write_slide_mapping(mapping: SlideMapping, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(serialize_slide_mapping(mapping), encoding="utf-8")
     return output_path.resolve()
-
 

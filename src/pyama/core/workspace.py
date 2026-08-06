@@ -7,7 +7,7 @@ from pyama.core.constants import RESULTS_DIRNAME, TIMESERIES_DIRNAME
 from pyama.core.slide import SlideMapping
 
 _TRACE_ALPHA = 0.1
-_WORKSPACE_METRICS_STEM = re.compile(r"^sc\d+_ch\d+$")
+_WORKSPACE_METRICS_STEM = re.compile(r"^ch\d+$")
 
 def trace_color_alpha_from_fluor_name(name: str) -> tuple[str, float]:
     haystack = name.lower()
@@ -44,13 +44,13 @@ def discover_timeseries_csvs(timeseries_dir: Path) -> list[Path]:
             f"Expected {TIMESERIES_DIRNAME}/ directory at {timeseries_dir}. "
             "Run timeseries first."
         )
-    csvs = sorted(timeseries_dir.glob("*.csv"), key=lambda path: path.name)
+    csvs = sorted(timeseries_dir.glob("Pos*/ch*.csv"), key=lambda path: (path.parent.name, path.name))
     if not csvs:
         raise ValueError(f"No CSV metrics files in {timeseries_dir}")
     metrics = [path for path in csvs if is_workspace_metrics_timeseries_csv(path)]
     if not metrics:
         raise ValueError(
-            f"No workspace metrics CSV files (expected stem sc{{slide}}_ch{{channel}}.csv) in {timeseries_dir}"
+            f"No position metrics CSV files (expected Pos{{position}}/ch{{channel}}.csv) in {timeseries_dir}"
         )
     return metrics
 

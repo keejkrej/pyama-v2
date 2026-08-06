@@ -6,7 +6,7 @@
   "build": {
     "devUrl": "http://127.0.0.1:5173",
     "beforeDevCommand": "vp dev --config vite.config.ts",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist"
   },
   "app": {

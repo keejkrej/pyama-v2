@@ -10,14 +10,10 @@ from pyama.readers.base import ImageInfo
 from pyama.services import crop
 
 
-def test_crop_position_worker_count_caps_at_positions_and_env(monkeypatch) -> None:
-    monkeypatch.delenv("PYAMA_CROP_MAX_WORKERS", raising=False)
+def test_crop_position_worker_count_caps_at_positions(monkeypatch) -> None:
     monkeypatch.setattr(crop.os, "cpu_count", lambda: 8)
     assert crop.crop_position_worker_count(3) == 3
     assert crop.crop_position_worker_count(20) == 8
-
-    monkeypatch.setenv("PYAMA_CROP_MAX_WORKERS", "2")
-    assert crop.crop_position_worker_count(20) == 2
 
 
 def test_frame_major_crop_reads_each_plane_once(tmp_path: Path) -> None:
@@ -49,7 +45,6 @@ def test_frame_major_crop_reads_each_plane_once(tmp_path: Path) -> None:
         ],
         info=info,
         read_frame=read_frame,
-        force=False,
         times=None,
         channels=None,
         z_slices=None,

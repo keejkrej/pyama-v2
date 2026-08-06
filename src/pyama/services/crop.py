@@ -37,35 +37,12 @@ class CropPositionResult:
 @dataclass(frozen=True)
 class CropRunResult:
     written: list[CropPositionResult]
-    skipped_existing: list[int]
     skipped_missing_bbox: list[int]
 
 
 def crop_position_worker_count(position_count: int) -> int:
-    """Choose parallel position workers, matching lisca's crop scheduler."""
-    available = os.cpu_count() or 1
-    raw = os.environ.get("PYAMA_CROP_MAX_WORKERS")
-    if raw is not None:
-        try:
-            max_workers = int(raw)
-        except ValueError:
-            max_workers = available
-        if max_workers <= 0:
-            max_workers = available
-    else:
-        max_workers = available
-    return max(1, min(position_count, max_workers))
-
-
-def _source_kind(path: Path) -> str:
-    suffix = path.suffix.lower()
-    if suffix == ".nd2":
-        return "nd2"
-    if suffix == ".czi":
-        return "czi"
-    if suffix in {".tif", ".tiff"}:
-        return "tif"
-    raise ValueError(f"Unsupported source format for crop: {path}")
+    """Choose parallel position workers from available CPU cores."""
+    return max(1, min(position_count, os.cpu_count() or 1))
 
 
 def _crop_frame(frame: np.ndarray, bbox: RoiBbox) -> np.ndarray:
@@ -79,26 +56,30 @@ def _write_index(
     *,
     output_dir: Path,
     pos: int,
-    source_path: Path,
     time_count: int,
     channel_count: int,
     z_count: int,
     bboxes: list[RoiBbox],
+    time_indices: list[int] | None = None,
 ) -> None:
+    resolved_times = list(time_indices) if time_indices is not None else list(range(time_count))
+    if len(resolved_times) != time_count:
+        raise ValueError(
+            f"timeIndices length {len(resolved_times)} does not match timeCount {time_count}"
+        )
     index = {
         "position": pos,
         "axisOrder": "TCZYX",
-        "pageOrder": ["t", "c", "z"],
         "timeCount": time_count,
         "channelCount": channel_count,
         "zCount": z_count,
-        "source": {"kind": _source_kind(source_path), "path": str(source_path.resolve())},
+        # Source acquisition indices for each T plane (may skip frames when downsampled).
+        "timeIndices": resolved_times,
         "rois": [
             {
                 "roi": bbox.roi,
                 "fileName": f"Roi{bbox.roi}.tif",
                 "bbox": {"roi": bbox.roi, "x": bbox.x, "y": bbox.y, "w": bbox.w, "h": bbox.h},
-                "shape": [time_count, channel_count, z_count, bbox.h, bbox.w],
             }
             for bbox in bboxes
         ],
@@ -121,12 +102,10 @@ class _StagingDirectory:
             shutil.rmtree(self.path, ignore_errors=True)
 
 
-def _publish_staged_directory(staging_dir: Path, target_dir: Path, *, overwrite: bool) -> None:
+def _publish_staged_directory(staging_dir: Path, target_dir: Path) -> None:
     if not target_dir.exists():
         staging_dir.rename(target_dir)
         return
-    if not overwrite:
-        raise ValueError(f"{target_dir} already exists")
 
     parent = target_dir.parent
     backup_dir = parent / f".{target_dir.name}.previous-{uuid4()}"
@@ -190,15 +169,12 @@ def _crop_position_with_reader(
     bboxes: list[RoiBbox],
     info: ImageInfo,
     read_frame: Callable[[int, int, int, int], np.ndarray],
-    force: bool,
     times: list[int] | None,
     channels: list[int] | None,
     z_slices: list[int] | None,
     on_progress: ProgressCallback | None,
 ) -> CropPositionResult:
     output_dir = workspace_roi_pos_dir(workspace, pos)
-    if output_dir.exists() and not force:
-        raise ValueError(f"roi/Pos{pos} already exists")
 
     time_indices = times if times is not None else list(range(info.n_time))
     channel_indices = channels if channels is not None else list(range(info.n_chan))
@@ -254,13 +230,13 @@ def _crop_position_with_reader(
         _write_index(
             output_dir=staging_dir,
             pos=pos,
-            source_path=source,
             time_count=len(time_indices),
             channel_count=len(channel_indices),
             z_count=len(z_indices),
             bboxes=bboxes,
+            time_indices=time_indices,
         )
-        _publish_staged_directory(staging_dir, output_dir, overwrite=force)
+        _publish_staged_directory(staging_dir, output_dir)
         staging.disarm()
 
     return CropPositionResult(pos=pos, output_dir=output_dir, roi_count=len(bboxes))
@@ -271,7 +247,6 @@ def crop_position(
     source: Path,
     pos: int,
     *,
-    force: bool = False,
     times: list[int] | None = None,
     channels: list[int] | None = None,
     z_slices: list[int] | None = None,
@@ -281,10 +256,6 @@ def crop_position(
     source = source.expanduser().resolve()
     bbox_path = workspace_bbox_csv_path(workspace, pos)
     if not bbox_path.is_file():
-        return None
-
-    output_dir = workspace_roi_pos_dir(workspace, pos)
-    if output_dir.exists() and not force:
         return None
 
     bboxes = parse_bbox_csv(bbox_path)
@@ -297,7 +268,6 @@ def crop_position(
             bboxes=bboxes,
             info=info,
             read_frame=read_frame,
-            force=force,
             times=times,
             channels=channels,
             z_slices=z_slices,
@@ -311,7 +281,6 @@ def _position_worker(
     *,
     workspace: Path,
     source: Path,
-    force: bool,
     queue: deque[tuple[int, list[RoiBbox]]],
     queue_lock: threading.Lock,
     results: list[CropPositionResult],
@@ -347,7 +316,6 @@ def _position_worker(
                     bboxes=bboxes,
                     info=info,
                     read_frame=read_frame,
-                    force=force,
                     times=None,
                     channels=None,
                     z_slices=None,
@@ -369,7 +337,6 @@ def run_crop(
     workspace: Path,
     source: Path,
     positions: list[int] | None = None,
-    force: bool = False,
     on_progress: ProgressCallback | None = None,
 ) -> CropRunResult:
     workspace = workspace.resolve()
@@ -382,7 +349,6 @@ def run_crop(
         raise ValueError(f"No bbox positions found under {workspace / 'bbox'}")
 
     jobs: list[tuple[int, list[RoiBbox]]] = []
-    skipped_existing: list[int] = []
     skipped_missing_bbox: list[int] = []
 
     for pos in requested:
@@ -390,18 +356,10 @@ def run_crop(
         if not bbox_path.is_file():
             skipped_missing_bbox.append(pos)
             continue
-        output_dir = workspace_roi_pos_dir(workspace, pos)
-        if output_dir.exists() and not force:
-            skipped_existing.append(pos)
-            continue
         jobs.append((pos, parse_bbox_csv(bbox_path)))
 
     if not jobs:
-        if skipped_existing and not skipped_missing_bbox:
-            raise ValueError(
-                "All requested ROI positions already exist. Set force=True to overwrite."
-            )
-        if skipped_missing_bbox and not skipped_existing:
+        if skipped_missing_bbox:
             raise ValueError(
                 "No bbox CSVs found for requested positions under "
                 f"{workspace / 'bbox'}: {skipped_missing_bbox}"
@@ -426,7 +384,6 @@ def run_crop(
                 _position_worker,
                 workspace=workspace,
                 source=source,
-                force=force,
                 queue=queue,
                 queue_lock=queue_lock,
                 results=results,
@@ -450,7 +407,6 @@ def run_crop(
 
     return CropRunResult(
         written=written,
-        skipped_existing=skipped_existing,
         skipped_missing_bbox=skipped_missing_bbox,
     )
 

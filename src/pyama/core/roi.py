@@ -26,6 +26,8 @@ class PositionIndex:
     time_count: int
     channel_count: int
     z_count: int
+    # Source acquisition time indices per T plane (CSV `t`); default 0..time_count-1.
+    time_indices: tuple[int, ...]
     rois: tuple[RoiCrop, ...]
 
 
@@ -47,14 +49,23 @@ def read_position_index(pos_dir: Path) -> PositionIndex:
 
     raw = json.loads(index_path.read_text(encoding="utf-8"))
     axis_order = str(raw.get("axisOrder", "")).upper()
-    if not axis_order:
-        raise ValueError(f"{index_path} is missing axisOrder")
+    if axis_order != "TCZYX":
+        raise ValueError(f"{index_path}: unsupported axisOrder {axis_order!r} (expected TCZYX)")
+
+    time_count = int(raw.get("timeCount", 1))
+    channel_count = int(raw.get("channelCount", 1))
+    z_count = int(raw.get("zCount", 1))
+    time_indices = _resolve_time_indices(raw.get("timeIndices"), time_count=time_count, index_path=index_path)
 
     rois: list[RoiCrop] = []
     for roi_entry in raw.get("rois", []):
         file_name = str(roi_entry["fileName"])
-        shape = tuple(int(value) for value in roi_entry["shape"])
         bbox = roi_entry.get("bbox") or {}
+        w = _coerce_optional_int(bbox.get("w"))
+        h = _coerce_optional_int(bbox.get("h"))
+        if w is None or h is None:
+            raise ValueError(f"{index_path}: ROI {roi_entry.get('roi')} missing bbox.w/bbox.h")
+        shape = (time_count, channel_count, z_count, h, w)
         rois.append(
             RoiCrop(
                 roi=int(roi_entry["roi"]),
@@ -62,8 +73,8 @@ def read_position_index(pos_dir: Path) -> PositionIndex:
                 shape=shape,
                 x=_coerce_optional_int(bbox.get("x")),
                 y=_coerce_optional_int(bbox.get("y")),
-                w=_coerce_optional_int(bbox.get("w")),
-                h=_coerce_optional_int(bbox.get("h")),
+                w=w,
+                h=h,
             )
         )
 
@@ -73,11 +84,25 @@ def read_position_index(pos_dir: Path) -> PositionIndex:
     return PositionIndex(
         position=int(raw.get("position", 0)),
         axis_order=axis_order,
-        time_count=int(raw.get("timeCount", 1)),
-        channel_count=int(raw.get("channelCount", 1)),
-        z_count=int(raw.get("zCount", 1)),
+        time_count=time_count,
+        channel_count=channel_count,
+        z_count=z_count,
+        time_indices=time_indices,
         rois=tuple(rois),
     )
+
+
+def _resolve_time_indices(raw: object, *, time_count: int, index_path: Path) -> tuple[int, ...]:
+    if raw is None:
+        return tuple(range(time_count))
+    if not isinstance(raw, list):
+        raise ValueError(f"{index_path}: timeIndices must be an array")
+    indices = tuple(int(value) for value in raw)
+    if len(indices) != time_count:
+        raise ValueError(
+            f"{index_path}: timeIndices length {len(indices)} does not match timeCount {time_count}"
+        )
+    return indices
 
 
 def validate_channel_index(index: PositionIndex, channel: int) -> None:
@@ -86,7 +111,9 @@ def validate_channel_index(index: PositionIndex, channel: int) -> None:
 
 
 def read_roi_stack(roi_path: Path, expected_shape: tuple[int, ...]) -> np.ndarray:
-    stack = np.asarray(tifffile.imread(roi_path))
+    # key=slice(None) stacks multipage TIFFs; needed when a spatial axis is 1
+    # (tifffile may otherwise return only the first page).
+    stack = np.asarray(tifffile.imread(roi_path, key=slice(None)))
     if stack.shape != expected_shape:
         expected_size = int(np.prod(expected_shape, dtype=np.int64))
         if stack.size != expected_size:
@@ -128,5 +155,3 @@ def roi_frame_2d(
     if frame.ndim != 2:
         raise ValueError(f"Expected a 2D ROI frame, got shape={frame.shape}")
     return frame
-
-
