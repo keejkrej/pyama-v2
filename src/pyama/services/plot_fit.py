@@ -269,7 +269,7 @@ def write_fitted_trace_grid(
                 slide_channel, matched_traces, slide_channel_names=slide_channel_names
             )
         )
-        ax.set_xlabel("minutes")
+        ax.set_xlabel("time (min)")
         ax.set_ylabel("corrected intensity")
         y_low, y_high = plot_timeseries.percentile_ylim(
             np.concatenate(sample_values) if sample_values else np.array([])
