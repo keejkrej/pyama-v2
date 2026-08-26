@@ -1,3 +1,8 @@
+## Fleet
+
+Legacy ROI-crop path. Current stack is `lisca` (`lisca-crop` / Studio). Do not start
+new analysis here. Fleet rules: `~/workspace/phd-notes/standard/README.md`.
+
 ## Agent skills
 
 ### Issue tracker
