@@ -65,13 +65,46 @@ if [[ -z "$UV_EXE" ]] || ! has_venv; then
   fi
 fi
 
+link_repo_in_home() {
+  local name link_path home_resolved repo_parent
+  name="$(basename -- "$REPO_ROOT")"
+  home_resolved="$(cd "$HOME" && pwd)"
+  repo_parent="$(cd "$(dirname -- "$REPO_ROOT")" && pwd)"
+  HOME_LINK_NAME="$name"
+  HOME_LINK_KIND=""
+
+  if [[ "$REPO_ROOT" == "$home_resolved" || "$repo_parent" == "$home_resolved" ]]; then
+    HOME_LINK_KIND="visible"
+    return 0
+  fi
+
+  link_path="$home_resolved/$name"
+  if [[ -d "$link_path" && ! -L "$link_path" ]]; then
+    echo "Warning: $link_path already exists as a directory; not replacing it with a symlink to $REPO_ROOT." >&2
+    return 0
+  fi
+  ln -sfn "$REPO_ROOT" "$link_path"
+  HOME_LINK_KIND="symlink"
+}
+
 cd "$REPO_ROOT"
 echo "Registering the Lisca kernel..."
 "$UV_EXE" run --python 3.12 --extra notebook python -m ipykernel install --user --name lisca --display-name "Lisca"
 
+HOME_LINK_NAME=""
+HOME_LINK_KIND=""
+link_repo_in_home
+
 echo ""
 echo "Done. Next steps:"
 echo "  1. Refresh the browser tab (or open JupyterHub again)."
-echo "  2. Open notebooks/crop.ipynb (then analyze.ipynb)."
-echo "  3. Kernel menu: pick Lisca if it is not already selected."
-echo "  4. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
+if [[ "$HOME_LINK_KIND" == "symlink" ]]; then
+  echo "  2. In the file tree, open ~/$HOME_LINK_NAME (symlink to the code folder)."
+  echo "  3. Open notebooks/crop.ipynb (then analyze.ipynb)."
+  echo "  4. Kernel menu: pick Lisca if it is not already selected."
+  echo "  5. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
+else
+  echo "  2. Open notebooks/crop.ipynb (then analyze.ipynb)."
+  echo "  3. Kernel menu: pick Lisca if it is not already selected."
+  echo "  4. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
+fi
