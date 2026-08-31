@@ -47,6 +47,11 @@ def run_plot_timeseries(
 
     panels = [(csv_path, load_timeseries_csv(csv_path)) for csv_path in timeseries_csvs]
     sample_panels = group_panels_by_slide_channel(panels, mapping)
+    traces_shared_ylim = pooled_column_ylim(sample_panels, "corrected")
+    summary_shared_ylim = pooled_summary_ylim(
+        sample_panels, y_column="corrected", interval=interval
+    )
+    area_shared_ylim = pooled_column_ylim(sample_panels, "area")
     for slide_channel, frames in sample_panels:
         sample_name = mapping[slide_channel].sample_name
         dest = sample_pack_dir(results_dir, sample_name)
@@ -63,6 +68,19 @@ def run_plot_timeseries(
             )
         )
         written.append(
+            write_sample_traces_plot(
+                frames,
+                dest / "traces_shared_y.png",
+                y_column="corrected",
+                y_label="corrected intensity",
+                interval=interval,
+                sample_label=sample_name,
+                slide_channel=slide_channel,
+                slide_channel_names=labels,
+                ylim=traces_shared_ylim,
+            )
+        )
+        written.append(
             write_sample_summary_plot(
                 frames,
                 dest / "traces_summary.png",
@@ -72,6 +90,19 @@ def run_plot_timeseries(
                 sample_label=sample_name,
                 slide_channel=slide_channel,
                 slide_channel_names=labels,
+            )
+        )
+        written.append(
+            write_sample_summary_plot(
+                frames,
+                dest / "traces_summary_shared_y.png",
+                y_column="corrected",
+                y_label="corrected intensity",
+                interval=interval,
+                sample_label=sample_name,
+                slide_channel=slide_channel,
+                slide_channel_names=labels,
+                ylim=summary_shared_ylim,
             )
         )
         if all("area" in df.columns for _, df in frames):
@@ -85,6 +116,19 @@ def run_plot_timeseries(
                     sample_label=sample_name,
                     slide_channel=slide_channel,
                     slide_channel_names=labels,
+                )
+            )
+            written.append(
+                write_sample_traces_plot(
+                    frames,
+                    dest / "area_shared_y.png",
+                    y_column="area",
+                    y_label="mask area",
+                    interval=interval,
+                    sample_label=sample_name,
+                    slide_channel=slide_channel,
+                    slide_channel_names=labels,
+                    ylim=area_shared_ylim,
                 )
             )
     return written
@@ -116,6 +160,7 @@ def write_sample_traces_plot(
     sample_label: str,
     slide_channel: int,
     slide_channel_names: dict[int, str],
+    ylim: tuple[float, float] | None = None,
 ) -> Path:
     fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
     trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
@@ -133,7 +178,9 @@ def write_sample_traces_plot(
     ax.set_title(f"{sample_label} ({trace_count} traces)")
     ax.set_xlabel("time (min)")
     ax.set_ylabel(y_label)
-    y_low, y_high = percentile_ylim(np.concatenate(values) if values else np.array([]))
+    y_low, y_high = ylim if ylim is not None else percentile_ylim(
+        np.concatenate(values) if values else np.array([])
+    )
     ax.set_ylim(y_low, y_high)
     _save_figure(fig, output_plot)
     return output_plot
@@ -149,6 +196,7 @@ def write_sample_summary_plot(
     sample_label: str,
     slide_channel: int,
     slide_channel_names: dict[int, str],
+    ylim: tuple[float, float] | None = None,
 ) -> Path:
     fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
     trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(
@@ -159,6 +207,8 @@ def write_sample_summary_plot(
         ax.set_title(f"{sample_label} (0 traces)")
         ax.set_xlabel("time (min)")
         ax.set_ylabel(y_label)
+        y_low, y_high = ylim if ylim is not None else summary_ylim(summary)
+        ax.set_ylim(y_low, y_high)
         _save_figure(fig, output_plot)
         return output_plot
 
@@ -169,7 +219,7 @@ def write_sample_summary_plot(
     ax.set_title(f"{sample_label} ({trace_count} traces)")
     ax.set_xlabel("time (min)")
     ax.set_ylabel(y_label)
-    y_low, y_high = summary_ylim(summary)
+    y_low, y_high = ylim if ylim is not None else summary_ylim(summary)
     ax.set_ylim(y_low, y_high)
     ax.legend(loc="best", frameon=False)
     _save_figure(fig, output_plot)
@@ -216,6 +266,34 @@ def summary_ylim(summary: SampleSummary | None) -> tuple[float, float]:
     _t, mean, median, q25, q75, _trace_count = summary
     values = np.concatenate([mean, median, q25, q75])
     return percentile_ylim(values)
+
+
+def pooled_column_ylim(
+    sample_panels: list[SamplePanel], y_column: str
+) -> tuple[float, float]:
+    values: list[np.ndarray] = []
+    for _slide_channel, frames in sample_panels:
+        for _csv_path, df in frames:
+            if y_column not in df.columns:
+                continue
+            values.append(panel_values(df, y_column))
+    return percentile_ylim(np.concatenate(values) if values else np.array([]))
+
+
+def pooled_summary_ylim(
+    sample_panels: list[SamplePanel],
+    *,
+    y_column: str,
+    interval: float,
+) -> tuple[float, float]:
+    values: list[np.ndarray] = []
+    for _slide_channel, frames in sample_panels:
+        summary = sample_summary_curves(frames, y_column=y_column, interval=interval)
+        if summary is None:
+            continue
+        _t, mean, median, q25, q75, _trace_count = summary
+        values.append(np.concatenate([mean, median, q25, q75]))
+    return percentile_ylim(np.concatenate(values) if values else np.array([]))
 
 
 def panel_values(df: pd.DataFrame, column: str) -> np.ndarray:
