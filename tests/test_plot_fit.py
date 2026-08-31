@@ -76,7 +76,7 @@ def _write_analysis_pos(workspace: Path, position: int, *, onset: float, rate: f
     ).to_csv(pos_dir / "fit.csv", index=False)
 
 
-def test_run_plot_fit_writes_per_sample_scatter(tmp_path: Path) -> None:
+def test_run_plot_fit_writes_per_sample_scatter_and_root_boxplots(tmp_path: Path) -> None:
     _write_analysis_pos(tmp_path, 0, onset=10.0, rate=1.0)
     _write_analysis_pos(tmp_path, 1, onset=20.0, rate=2.0)
     mapping = samples_to_mapping(
@@ -92,15 +92,36 @@ def test_run_plot_fit_writes_per_sample_scatter(tmp_path: Path) -> None:
         mapping=mapping,
         slide_channel_names={0: "A", 1: "B"},
     )
-    names = [path.name for path in written]
-    assert "expression_rate.png" in names
+    names = {path.name for path in written}
     assert "expression_rate_vs_onset.png" in names
-    scatter_a = tmp_path / "results" / "A" / "expression_rate_vs_onset.png"
-    scatter_b = tmp_path / "results" / "B" / "expression_rate_vs_onset.png"
-    assert scatter_a.is_file()
-    assert scatter_b.is_file()
-    assert not (tmp_path / "results" / "expression_rate_vs_onset.png").exists()
-    assert not (tmp_path / "results" / "fit.csv").exists()
-    assert (tmp_path / "results" / "A" / "fit.xlsx").is_file()
-    assert not (tmp_path / "results" / "A" / "fit.csv").exists()
+    assert "traces_fit.png" in names
+    results = tmp_path / "results"
+    sample_a = results / "A"
+    for name in (
+        "auc.png",
+        "expression_rate.png",
+        "expression_rate_log.png",
+        "onset_time.png",
+        "baseline_intensity.png",
+        "protein_lifetime.png",
+        "mrna_lifetime.png",
+        "area_summary.png",
+    ):
+        assert not (sample_a / name).exists(), name
+    assert (sample_a / "expression_rate_vs_onset.png").is_file()
+    assert (sample_a / "traces_fit.png").is_file()
+    assert (sample_a / "fit.xlsx").is_file()
+    assert not (sample_a / "fit.csv").exists()
+    assert not (results / "expression_rate_vs_onset.png").exists()
+    assert not (results / "fit.csv").exists()
+    for name in (
+        "baseline_intensity.png",
+        "protein_lifetime.png",
+        "mrna_lifetime.png",
+        "onset_time.png",
+        "expression_rate.png",
+    ):
+        assert (results / name).is_file(), name
+    assert not (results / "expression_rate_log.png").exists()
+    assert not (results / "auc_log.png").exists()
     assert filesystem_safe_sample_name("A") == "A"
