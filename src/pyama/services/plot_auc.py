@@ -7,13 +7,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from pyama import core as paths
 from pyama import core as plot_layout
+from pyama.core import boxplot_tick_labels, boxplot_x_axis_label
 from pyama.core.slide import SlideMapping
 from pyama.services import auc
 from pyama.services.plot_timeseries import percentile_ylim
-from pyama.services.sample_packs import sample_pack_dir, write_sample_table_xlsx
+from pyama.services.sample_packs import position_lookup, write_sample_table_xlsx
 
 
 def run_plot_auc(
@@ -22,7 +24,7 @@ def run_plot_auc(
     mapping: SlideMapping,
     slide_channel_names: dict[int, str] | None = None,
 ) -> list[Path]:
-    """Read analysis/PosN/auc.csv and write results/<sample>/ auc.xlsx + pngs."""
+    """Write per-sample auc.xlsx and one cross-sample boxplot at results/ root."""
     workspace = workspace.resolve()
     df = auc.load_analysis_auc_table(workspace)
     labels = slide_channel_names or paths.slide_channel_labels(mapping)
@@ -30,65 +32,70 @@ def run_plot_auc(
     written: list[Path] = []
     written.extend(write_sample_table_xlsx(workspace, mapping, kind="auc", df=df))
 
-    lookup_positions = {
-        slide_channel: set(entry.positions) for slide_channel, entry in mapping.items()
-    }
-    for slide_channel, entry in mapping.items():
-        sample_df = df.loc[df["pos"].astype(int).isin(lookup_positions[slide_channel])].copy()
-        if sample_df.empty:
-            continue
-        dest = sample_pack_dir(results_dir, entry.sample_name)
-        label = labels.get(slide_channel, entry.sample_name)
-        written.append(
-            write_sample_boxplot(
-                sample_df["auc"].to_numpy(dtype=float),
-                sample_label=label,
-                ylabel="AUC",
-                output_plot=dest / "auc.png",
-                log_scale=False,
-            )
+    plotted = assign_slide_channels(df, mapping)
+    written.append(
+        write_condition_boxplot(
+            plotted,
+            value_column="auc",
+            ylabel="AUC",
+            output_plot=results_dir / "auc.png",
+            slide_channel_names=labels,
         )
-        written.append(
-            write_sample_boxplot(
-                sample_df["auc"].to_numpy(dtype=float),
-                sample_label=label,
-                ylabel="AUC",
-                output_plot=dest / "auc_log.png",
-                log_scale=True,
-            )
-        )
+    )
     return written
 
 
-def log_output_plot_path(output_plot: Path) -> Path:
-    return output_plot.with_name(f"{output_plot.stem}_log{output_plot.suffix}")
+def assign_slide_channels(df: pd.DataFrame, mapping: SlideMapping) -> pd.DataFrame:
+    lookup = position_lookup(mapping)
+    slide_channels: list[int] = []
+    keep_rows: list[bool] = []
+    for pos in df["pos"].tolist():
+        mapped = lookup.get(int(pos)) if pd.notna(pos) else None
+        if mapped is None:
+            keep_rows.append(False)
+            slide_channels.append(-1)
+            continue
+        keep_rows.append(True)
+        slide_channels.append(mapped[0])
+    out = df.loc[keep_rows].copy()
+    out["slide_channel"] = [sc for sc, keep in zip(slide_channels, keep_rows) if keep]
+    return out
 
 
-def write_sample_boxplot(
-    values: np.ndarray,
+def write_condition_boxplot(
+    df: pd.DataFrame,
     *,
-    sample_label: str,
+    value_column: str,
     ylabel: str,
     output_plot: Path,
-    log_scale: bool,
+    slide_channel_names: dict[int, str],
 ) -> Path:
-    arr = np.asarray(values, dtype=float)
-    arr = arr[np.isfinite(arr)]
-    if log_scale:
-        arr = arr[arr > 0]
-    if arr.size == 0:
-        raise ValueError(f"No finite rows available to plot {ylabel!r} for {sample_label!r}")
+    """One box per sample; written once at results/ root (linear scale)."""
+    parameter_df = df.dropna(subset=[value_column, "slide_channel"]).copy()
+    parameter_df[value_column] = pd.to_numeric(parameter_df[value_column], errors="coerce")
+    parameter_df = parameter_df.dropna(subset=[value_column])
+    if parameter_df.empty:
+        raise ValueError(f"No finite rows available to plot {ylabel!r}")
+
+    slide_channels = sorted(int(channel) for channel in parameter_df["slide_channel"].unique().tolist())
+    grouped_values = [
+        parameter_df.loc[parameter_df["slide_channel"] == slide_channel, value_column].to_numpy(
+            dtype=float
+        )
+        for slide_channel in slide_channels
+    ]
+    trace_counts = [int(values.size) for values in grouped_values]
 
     fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
-    n = int(arr.size)
-    ax.boxplot([arr], tick_labels=[f"{sample_label}\n(n={n})"])
-    ax.set_xlabel("condition")
+    ax.boxplot(
+        grouped_values,
+        tick_labels=boxplot_tick_labels(slide_channels, trace_counts, slide_channel_names),
+    )
+    ax.set_xlabel(boxplot_x_axis_label(slide_channel_names))
     ax.set_ylabel(ylabel)
-    if log_scale:
-        ax.set_yscale("log")
-    else:
-        y_low, y_high = percentile_ylim(arr)
-        ax.set_ylim(y_low, y_high)
+    arrays = [values for values in grouped_values if values.size]
+    y_low, y_high = percentile_ylim(np.concatenate(arrays) if arrays else np.array([]))
+    ax.set_ylim(y_low, y_high)
 
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
