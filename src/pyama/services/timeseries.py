@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,16 +9,14 @@ from typing import Callable
 import pandas as pd
 
 from pyama.core import (
-    SlideMapping,
     compute_timeseries_metrics,
+    discover_roi_positions,
     position_dir,
     read_position_index,
     validate_channel_index,
-    validate_slide_mapping,
     write_metrics_csv,
+    workspace_analysis_dir,
 )
-from pyama.core.export import parallel_xlsx_path
-from pyama.services.sample_packs import write_sample_traces_packs
 
 OUTPUT_COLUMNS = ("roi", "t", "area", "background", "sum", "corrected")
 CsvWrittenCallback = Callable[[int, Path, int], None]
@@ -28,10 +25,7 @@ CsvWrittenCallback = Callable[[int, Path, int], None]
 @dataclass(frozen=True)
 class SlideTimeseriesRunResult:
     written_outputs: list[tuple[int, Path, int]]
-    skipped_positions: dict[int, list[int]]
-
-
-load_slide_position_groups = validate_slide_mapping
+    skipped_positions: list[int]
 
 
 def default_position_timeseries_csv_path(
@@ -39,7 +33,7 @@ def default_position_timeseries_csv_path(
     position: int,
     signal_channel: int,
 ) -> Path:
-    csv_path = workspace / "timeseries" / f"Pos{position}" / f"ch{signal_channel}.csv"
+    csv_path = workspace_analysis_dir(workspace) / f"Pos{position}" / f"ch{signal_channel}.csv"
     return csv_path.resolve()
 
 
@@ -50,14 +44,13 @@ def simplify_metrics(df: pd.DataFrame) -> pd.DataFrame:
 def _run_position_metrics(
     workspace: Path,
     *,
-    slide_channel: int,
     signal_channel: int,
     resolved_pos: int,
-) -> tuple[int, int, int, pd.DataFrame | None]:
+) -> tuple[int, int, pd.DataFrame | None]:
     try:
         pos_dir = position_dir(workspace, resolved_pos)
     except ValueError:
-        return (slide_channel, signal_channel, resolved_pos, None)
+        return (signal_channel, resolved_pos, None)
 
     index = read_position_index(pos_dir)
     validate_channel_index(index, signal_channel)
@@ -66,16 +59,15 @@ def _run_position_metrics(
         index,
         channel=signal_channel,
     )
-    return (slide_channel, signal_channel, resolved_pos, metrics_df)
+    return (signal_channel, resolved_pos, metrics_df)
 
 
 def _position_timeseries_task(
-    payload: tuple[str, int, int, int],
-) -> tuple[int, int, int, pd.DataFrame | None]:
-    workspace_str, slide_channel, signal_channel, resolved_pos = payload
+    payload: tuple[str, int, int],
+) -> tuple[int, int, pd.DataFrame | None]:
+    workspace_str, signal_channel, resolved_pos = payload
     return _run_position_metrics(
         Path(workspace_str),
-        slide_channel=slide_channel,
         signal_channel=signal_channel,
         resolved_pos=resolved_pos,
     )
@@ -103,46 +95,35 @@ def _write_position_csv(
 def run_slide_timeseries(
     workspace: Path,
     *,
-    mapping: SlideMapping,
+    signal_channel: int,
     on_csv_written: CsvWrittenCallback | None = None,
 ) -> SlideTimeseriesRunResult:
     workspace = workspace.resolve()
-    slide_positions = validate_slide_mapping(mapping)
-    position_tasks: list[tuple[str, int, int, int]] = [
-        (
-            str(workspace),
-            slide_channel,
-            entry.signal_channel,
-            resolved_pos,
-        )
-        for slide_channel, entry in slide_positions.items()
-        for resolved_pos in entry.positions
+    if not isinstance(signal_channel, int) or isinstance(signal_channel, bool) or signal_channel < 0:
+        raise ValueError(f"SIGNAL_CHANNEL must be a non-negative integer, got {signal_channel!r}")
+    positions = discover_roi_positions(workspace)
+    if not positions:
+        raise ValueError(f"No ROI directories found under {workspace / 'roi'}")
+
+    position_tasks: list[tuple[str, int, int]] = [
+        (str(workspace), signal_channel, resolved_pos) for resolved_pos in positions
     ]
 
-    if not position_tasks:
-        raise ValueError("Slide mapping defines no valid positions")
-
-    skipped_positions: dict[int, list[int]] = defaultdict(list)
+    skipped_positions: list[int] = []
     written_outputs: list[tuple[int, Path, int]] = []
-    signal_channels = {
-        (slide_channel, position): entry.signal_channel
-        for slide_channel, entry in slide_positions.items()
-        for position in entry.positions
-    }
 
     def consume_result(
-        slide_channel: int,
         _signal_channel: int,
         position: int,
         metrics_df: pd.DataFrame | None,
     ) -> None:
         if metrics_df is None:
-            skipped_positions[slide_channel].append(position)
+            skipped_positions.append(position)
             return
         output_csv, row_count = _write_position_csv(
             workspace,
             position=position,
-            signal_channel=signal_channels[(slide_channel, position)],
+            signal_channel=signal_channel,
             metrics_df=metrics_df,
         )
         written_outputs.append((position, output_csv, row_count))
@@ -151,12 +132,11 @@ def run_slide_timeseries(
 
     max_workers = max(1, min(len(position_tasks), os.cpu_count() or 1))
     if max_workers == 1:
-        for ws_str, slide_channel, signal_channel, resolved_pos in position_tasks:
+        for ws_str, task_signal_channel, resolved_pos in position_tasks:
             consume_result(
                 *_run_position_metrics(
                     Path(ws_str),
-                    slide_channel=slide_channel,
-                    signal_channel=signal_channel,
+                    signal_channel=task_signal_channel,
                     resolved_pos=resolved_pos,
                 )
             )
@@ -168,61 +148,39 @@ def run_slide_timeseries(
 
     if not written_outputs:
         if skipped_positions:
-            skipped_summary = "; ".join(
-                f"slide channel {slide_channel} -> {', '.join(str(pos) for pos in positions)}"
-                for slide_channel, positions in sorted(skipped_positions.items())
-            )
+            skipped_summary = ", ".join(str(pos) for pos in sorted(skipped_positions))
             raise ValueError(
-                "No ROI directories found for positions in slide mapping. "
+                "No ROI directories found for discovered positions. "
                 f"Skipped positions: {skipped_summary}"
             )
-        raise ValueError("Slide mapping defines no valid positions")
+        raise ValueError(f"No ROI directories found under {workspace / 'roi'}")
 
     written_outputs.sort(key=lambda item: item[0])
-    write_sample_traces_packs(workspace, mapping)
     return SlideTimeseriesRunResult(
         written_outputs=written_outputs,
-        skipped_positions={
-            slide_channel: sorted(positions)
-            for slide_channel, positions in sorted(skipped_positions.items())
-        },
+        skipped_positions=sorted(skipped_positions),
     )
 
 
 def format_written_timeseries_csv_message(position: int, output_csv: Path, row_count: int) -> str:
-    output_xlsx = parallel_xlsx_path(output_csv)
-    message = (
-        f"Wrote metrics CSV for Pos{position} with {row_count} rows: "
-        f"{output_csv}"
+    return f"Wrote metrics CSV for Pos{position} with {row_count} rows: {output_csv}"
+
+
+def format_skipped_positions_message(skipped_positions: list[int]) -> str:
+    skipped_summary = ", ".join(str(pos) for pos in skipped_positions)
+    return (
+        f"Skipped {len(skipped_positions)} missing positions from roi/: {skipped_summary}"
     )
-    if output_xlsx.is_file():
-        message += (
-            f"\nWrote metrics XLSX for Pos{position} with {row_count} rows: "
-            f"{output_xlsx}"
-        )
-    else:
-        message += f"\nSkipped metrics XLSX (exceeds Excel row limit): {output_xlsx}"
-    return message
-
-
-
-def format_skipped_positions_message(skipped_positions: dict[int, list[int]]) -> str:
-    total_skipped_positions = sum(len(positions) for positions in skipped_positions.values())
-    skipped_summary = "; ".join(
-        f"slide channel {slide_channel} -> {', '.join(str(pos) for pos in positions)}"
-        for slide_channel, positions in sorted(skipped_positions.items())
-    )
-    return f"Skipped {total_skipped_positions} missing positions from slide mapping: {skipped_summary}"
 
 
 def run_timeseries(
     *,
     workspace: Path,
-    mapping: SlideMapping,
+    signal_channel: int,
     on_csv_written: CsvWrittenCallback | None = None,
 ) -> SlideTimeseriesRunResult:
     return run_slide_timeseries(
         workspace,
-        mapping=mapping,
+        signal_channel=signal_channel,
         on_csv_written=on_csv_written,
     )
