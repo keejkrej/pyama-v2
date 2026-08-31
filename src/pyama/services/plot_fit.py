@@ -17,12 +17,13 @@ from pyama.core.slide import SlideMapping
 from pyama.services import fit, plot_auc, plot_timeseries
 from pyama.services.sample_packs import position_lookup, sample_pack_dir, write_sample_table_xlsx
 
-PLOTTED_PARAMETERS = (
-    ("intensity_offset", "intensity offset"),
-    ("protein_lifetime", "protein lifetime"),
-    ("mrna_lifetime", "mRNA lifetime"),
-    ("translation_onset", "translation onset"),
-    ("expression_rate", "expression rate"),
+# Cross-sample boxplots at results/ root: (column, ylabel, filename).
+ROOT_BOXPLOTS = (
+    ("intensity_offset", "baseline intensity", "baseline_intensity.png"),
+    ("protein_lifetime", "protein lifetime", "protein_lifetime.png"),
+    ("mrna_lifetime", "mRNA lifetime", "mrna_lifetime.png"),
+    ("translation_onset", "onset time", "onset_time.png"),
+    ("expression_rate", "expression rate", "expression_rate.png"),
 )
 FIT_TRACE_PARAMETERS = (
     "intensity_offset",
@@ -40,7 +41,7 @@ def run_plot_fit(
     mapping: SlideMapping,
     slide_channel_names: dict[int, str] | None = None,
 ) -> list[Path]:
-    """Read analysis/PosN/fit.csv and write results/<sample>/ fit.xlsx + pngs."""
+    """Write per-sample fit.xlsx + scatter/traces_fit; boxplots once at results/ root."""
     if interval <= 0:
         raise ValueError(f"--interval must be > 0, got {interval}")
     workspace = workspace.resolve()
@@ -53,6 +54,7 @@ def run_plot_fit(
     analysis_csvs = paths.discover_timeseries_csvs(paths.require_analysis_dir(workspace))
     panels = [(csv_path, load_timeseries_csv(csv_path)) for csv_path in analysis_csvs]
     sample_panels = plot_timeseries.group_panels_by_slide_channel(panels, mapping)
+    fit_shared_ylim = plot_timeseries.pooled_column_ylim(sample_panels, "corrected")
 
     for slide_channel, entry in mapping.items():
         sample_df = df.loc[df["slide_channel"] == slide_channel].copy()
@@ -60,26 +62,6 @@ def run_plot_fit(
             continue
         dest = sample_pack_dir(results_dir, entry.sample_name)
         label = labels.get(slide_channel, entry.sample_name)
-        for parameter, parameter_label in PLOTTED_PARAMETERS:
-            written.append(
-                plot_auc.write_sample_boxplot(
-                    sample_df[parameter].to_numpy(dtype=float),
-                    sample_label=label,
-                    ylabel=parameter_label,
-                    output_plot=dest / f"{parameter}.png",
-                    log_scale=False,
-                )
-            )
-            if parameter == "expression_rate":
-                written.append(
-                    plot_auc.write_sample_boxplot(
-                        sample_df[parameter].to_numpy(dtype=float),
-                        sample_label=label,
-                        ylabel=parameter_label,
-                        output_plot=dest / "expression_rate_log.png",
-                        log_scale=True,
-                    )
-                )
         written.append(
             write_expression_rate_vs_onset_scatter(
                 sample_df,
@@ -100,6 +82,29 @@ def run_plot_fit(
                     slide_channel_names=labels,
                 )
             )
+            written.append(
+                write_sample_fitted_traces(
+                    sample_df,
+                    sample_frames,
+                    dest / "traces_fit_shared_y.png",
+                    interval=interval,
+                    sample_label=label,
+                    slide_channel=slide_channel,
+                    slide_channel_names=labels,
+                    ylim=fit_shared_ylim,
+                )
+            )
+
+    for parameter, parameter_label, filename in ROOT_BOXPLOTS:
+        written.append(
+            plot_auc.write_condition_boxplot(
+                df,
+                value_column=parameter,
+                ylabel=parameter_label,
+                output_plot=results_dir / filename,
+                slide_channel_names=labels,
+            )
+        )
     return written
 
 
@@ -229,6 +234,7 @@ def write_sample_fitted_traces(
     sample_label: str,
     slide_channel: int,
     slide_channel_names: dict[int, str],
+    ylim: tuple[float, float] | None = None,
 ) -> Path:
     fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
     fit_lookup = (
@@ -266,7 +272,7 @@ def write_sample_fitted_traces(
     ax.set_title(f"{sample_label} ({matched_traces} traces)")
     ax.set_xlabel("time (min)")
     ax.set_ylabel("corrected intensity")
-    y_low, y_high = plot_timeseries.percentile_ylim(
+    y_low, y_high = ylim if ylim is not None else plot_timeseries.percentile_ylim(
         np.concatenate(sample_values) if sample_values else np.array([])
     )
     ax.set_ylim(y_low, y_high)
