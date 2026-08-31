@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import errno
 import json
 import os
 import shutil
 import threading
 from collections import deque
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,12 +26,19 @@ from pyama.core.bbox import (
     workspace_roi_pos_dir,
 )
 
+try:
+    import resource
+except ImportError:  # pragma: no cover - Windows
+    resource = None  # type: ignore[assignment]
+
 ProgressCallback = Callable[[str], None]
 
-# JupyterHub ulimits are often 1024; unbounded cpu_count workers each holding
-# many TiffWriters exceeds that on a dense ROI grid.
-_DEFAULT_MAX_CROP_WORKERS = 4
-_ROI_WRITER_CHUNK_SIZE = 32
+# Extra position workers each open another ND2/CZI reader on the same file
+# and contend for seeks (especially JupyterHub NFS). Default is one worker;
+# PYAMA_CROP_WORKERS opts into parallelism but is an upper bound, not a
+# guarantee — the FD budget can still shrink the request.
+_FD_HEADROOM = 256
+_MIN_FD_BUDGET = 64
 
 
 @dataclass(frozen=True)
@@ -45,14 +54,45 @@ class CropRunResult:
     skipped_missing_bbox: list[int]
 
 
-def crop_position_worker_count(position_count: int) -> int:
-    """Choose parallel position workers, capped for JupyterHub file-descriptor limits.
+def crop_fd_budget(soft_limit: int | None = None) -> int:
+    """FDs available for crop readers/writers after leaving Python/ND2 headroom.
 
-    Default is ``min(cpu_count, 4, position_count)``. Set ``PYAMA_CROP_WORKERS``
-    to a positive integer to override the CPU/Hub cap (still limited by
-    ``position_count``).
+    ``budget = max(64, soft_limit - 256)``. Queries
+    ``resource.getrlimit(RLIMIT_NOFILE)`` when ``soft_limit`` is omitted.
     """
-    requested = min(os.cpu_count() or 1, _DEFAULT_MAX_CROP_WORKERS)
+    if soft_limit is None:
+        if resource is None:
+            return 2**20
+        try:
+            soft_limit, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        except (OSError, ValueError):
+            return 2**20
+    if soft_limit <= 0:
+        return 2**20
+    infinity = getattr(resource, "RLIM_INFINITY", None) if resource is not None else None
+    if infinity is not None and infinity > 0 and soft_limit == infinity:
+        return 2**20
+    if soft_limit > 10**9:
+        return 2**20
+    return max(_MIN_FD_BUDGET, int(soft_limit) - _FD_HEADROOM)
+
+
+def crop_position_worker_count(
+    position_count: int,
+    *,
+    max_roi_count: int = 0,
+    fd_budget: int | None = None,
+) -> int:
+    """Choose parallel position workers.
+
+    Default is 1: extra workers each open another reader on the same ND2/CZI
+    and mostly fight for seeks. Set ``PYAMA_CROP_WORKERS`` to a positive
+    integer to opt into parallelism (still limited by ``position_count``).
+    The env var is an upper bound, not a guarantee: workers also shrink to
+    ``budget // (max_roi_count + 1)`` so ``workers * (n_roi + 1)`` stays
+    within the FD budget.
+    """
+    requested = 1
     raw = os.environ.get("PYAMA_CROP_WORKERS", "").strip()
     if raw:
         try:
@@ -61,7 +101,10 @@ def crop_position_worker_count(position_count: int) -> int:
             parsed = 0
         if parsed > 0:
             requested = parsed
-    return max(1, min(position_count, requested))
+    requested = max(1, min(position_count, requested))
+    budget = crop_fd_budget() if fd_budget is None else fd_budget
+    fd_capped = budget // (max(0, max_roi_count) + 1)
+    return max(1, min(requested, fd_capped))
 
 
 def _crop_frame(frame: np.ndarray, bbox: RoiBbox) -> np.ndarray:
@@ -142,7 +185,94 @@ def _publish_staged_directory(staging_dir: Path, target_dir: Path) -> None:
     shutil.rmtree(backup_dir, ignore_errors=True)
 
 
-def _write_roi_tiff_chunk_frame_major(
+def _is_too_many_open_files(exc: BaseException) -> bool:
+    return isinstance(exc, OSError) and exc.errno in {errno.EMFILE, 24}
+
+
+def _close_tiff_writers(writers: list[tuple[RoiBbox, tifffile.TiffWriter]]) -> None:
+    for _, writer in writers:
+        try:
+            writer.close()
+        except OSError:
+            pass
+
+
+def _discard_open_roi_writers(
+    writers: list[tuple[RoiBbox, tifffile.TiffWriter]],
+    output_dir: Path,
+) -> None:
+    """Close writers and remove any files they created (EMFILE fallback)."""
+    _close_tiff_writers(writers)
+    for bbox, _writer in writers:
+        (output_dir / f"Roi{bbox.roi}.tif").unlink(missing_ok=True)
+
+
+def _open_roi_writer(output_dir: Path, bbox: RoiBbox) -> tifffile.TiffWriter:
+    path = output_dir / f"Roi{bbox.roi}.tif"
+    return tifffile.TiffWriter(path, append=path.is_file())
+
+
+def _write_frame_crops_in_batches(
+    *,
+    bboxes: list[RoiBbox],
+    crops: list[np.ndarray],
+    output_dir: Path,
+    max_open: int,
+) -> int:
+    """Write one frame's ROI pages with at most ``max_open`` TiffWriters.
+
+    Creates each ``Roi{n}.tif`` on first visit; later frames reopen with
+    append=True and close after the batch. Returns the (possibly reduced)
+    open limit after EMFILE retries.
+    """
+    open_limit = max(1, max_open)
+    index = 0
+    n_roi = len(bboxes)
+    while index < n_roi:
+        batch_end = min(n_roi, index + open_limit)
+        writers: list[tuple[RoiBbox, tifffile.TiffWriter]] = []
+        try:
+            for bbox in bboxes[index:batch_end]:
+                writers.append((bbox, _open_roi_writer(output_dir, bbox)))
+            for (_bbox, writer), page in zip(writers, crops[index:batch_end], strict=True):
+                writer.write(page, contiguous=True)
+            index = batch_end
+        except OSError as exc:
+            if not _is_too_many_open_files(exc) or open_limit <= 1:
+                raise
+            opened = len(writers)
+            reduced = opened if opened > 0 else open_limit // 2
+            open_limit = max(1, min(open_limit - 1, reduced))
+        finally:
+            _close_tiff_writers(writers)
+    return open_limit
+
+
+def _iter_source_planes(
+    *,
+    pos: int,
+    read_frame: Callable[[int, int, int, int], np.ndarray],
+    time_indices: list[int],
+    channel_indices: list[int],
+    z_indices: list[int],
+    frame_shape: tuple[int, int],
+    dtype: np.dtype,
+) -> Iterator[np.ndarray]:
+    for time_index in time_indices:
+        for channel_index in channel_indices:
+            for z_index in z_indices:
+                frame = np.asarray(read_frame(pos, time_index, channel_index, z_index))
+                if frame.shape != frame_shape:
+                    raise ValueError(
+                        f"Inconsistent frame shape at Pos{pos} t={time_index} "
+                        f"c={channel_index} z={z_index}: {frame.shape} vs {frame_shape}"
+                    )
+                if frame.dtype != dtype:
+                    frame = frame.astype(dtype, copy=False)
+                yield frame
+
+
+def _write_roi_tiffs_frame_major(
     *,
     pos: int,
     bboxes: list[RoiBbox],
@@ -154,42 +284,61 @@ def _write_roi_tiff_chunk_frame_major(
     frame_shape: tuple[int, int],
     dtype: np.dtype,
     on_frame_done: Callable[[], None] | None,
-    writer_chunk_size: int | None = None,
+    fd_budget: int | None = None,
 ) -> None:
-    """Read each full frame once per ROI-writer chunk and append a TIFF page for every ROI.
+    """Read each full frame once and append a TIFF page for every ROI.
 
-    Keeps at most ``writer_chunk_size`` TiffWriters open (default 32) so a dense
-    grid does not exhaust the process file-descriptor limit. Later chunks
-    re-read source frames. Progress is counted on the first chunk only.
+    Prefer holding every ``Roi{n}.tif`` writer open for the position so the
+    source is not re-read. If a single position has more ROIs than
+    ``budget - 1`` (or open() raises EMFILE), crop every ROI of the current
+    frame into memory and write with at most ``budget - 1`` TiffWriters,
+    reopening files in append mode between batches. Never re-scan the source.
     """
-    chunk_size = _ROI_WRITER_CHUNK_SIZE if writer_chunk_size is None else writer_chunk_size
-    if chunk_size < 1:
-        raise ValueError("writer_chunk_size must be >= 1")
+    budget = crop_fd_budget() if fd_budget is None else fd_budget
+    max_open = max(1, budget - 1)
+    plane_kwargs = {
+        "pos": pos,
+        "read_frame": read_frame,
+        "time_indices": time_indices,
+        "channel_indices": channel_indices,
+        "z_indices": z_indices,
+        "frame_shape": frame_shape,
+        "dtype": dtype,
+    }
 
-    for chunk_start in range(0, len(bboxes), chunk_size):
-        chunk = bboxes[chunk_start : chunk_start + chunk_size]
-        writers: list[tuple[RoiBbox, tifffile.TiffWriter]] = []
-        try:
-            for bbox in chunk:
-                writers.append((bbox, tifffile.TiffWriter(output_dir / f"Roi{bbox.roi}.tif")))
-            for time_index in time_indices:
-                for channel_index in channel_indices:
-                    for z_index in z_indices:
-                        frame = np.asarray(read_frame(pos, time_index, channel_index, z_index))
-                        if frame.shape != frame_shape:
-                            raise ValueError(
-                                f"Inconsistent frame shape at Pos{pos} t={time_index} "
-                                f"c={channel_index} z={z_index}: {frame.shape} vs {frame_shape}"
-                            )
-                        if frame.dtype != dtype:
-                            frame = frame.astype(dtype, copy=False)
-                        for bbox, writer in writers:
-                            writer.write(_crop_frame(frame, bbox), contiguous=True)
-                        if on_frame_done is not None and chunk_start == 0:
-                            on_frame_done()
-        finally:
-            for _, writer in writers:
-                writer.close()
+    writers: list[tuple[RoiBbox, tifffile.TiffWriter]] = []
+    try:
+        if len(bboxes) <= max_open:
+            try:
+                for bbox in bboxes:
+                    writers.append((bbox, tifffile.TiffWriter(output_dir / f"Roi{bbox.roi}.tif")))
+            except OSError as exc:
+                opened = len(writers)
+                _discard_open_roi_writers(writers, output_dir)
+                writers = []
+                if not _is_too_many_open_files(exc):
+                    raise
+                max_open = max(1, opened) if opened else max(1, max_open // 2)
+            else:
+                for frame in _iter_source_planes(**plane_kwargs):
+                    for bbox, writer in writers:
+                        writer.write(_crop_frame(frame, bbox), contiguous=True)
+                    if on_frame_done is not None:
+                        on_frame_done()
+                return
+    finally:
+        _close_tiff_writers(writers)
+
+    for frame in _iter_source_planes(**plane_kwargs):
+        crops = [_crop_frame(frame, bbox) for bbox in bboxes]
+        max_open = _write_frame_crops_in_batches(
+            bboxes=bboxes,
+            crops=crops,
+            output_dir=output_dir,
+            max_open=max_open,
+        )
+        if on_frame_done is not None:
+            on_frame_done()
 
 
 def _crop_position_with_reader(
@@ -204,6 +353,7 @@ def _crop_position_with_reader(
     channels: list[int] | None,
     z_slices: list[int] | None,
     on_progress: ProgressCallback | None,
+    fd_budget: int | None = None,
 ) -> CropPositionResult:
     output_dir = workspace_roi_pos_dir(workspace, pos)
 
@@ -245,7 +395,7 @@ def _crop_position_with_reader(
 
     with _StagingDirectory(staging_dir) as staging:
         # Frame-major streaming write (lisca): one source read per plane, page all ROIs.
-        _write_roi_tiff_chunk_frame_major(
+        _write_roi_tiffs_frame_major(
             pos=pos,
             bboxes=bboxes,
             output_dir=staging_dir,
@@ -256,6 +406,7 @@ def _crop_position_with_reader(
             frame_shape=frame_shape,
             dtype=dtype,
             on_frame_done=on_frame_done,
+            fd_budget=fd_budget,
         )
 
         _write_index(
@@ -303,6 +454,7 @@ def crop_position(
             channels=channels,
             z_slices=z_slices,
             on_progress=on_progress,
+            fd_budget=crop_fd_budget(),
         )
     finally:
         close()
@@ -320,6 +472,7 @@ def _position_worker(
     errors_lock: threading.Lock,
     on_progress: ProgressCallback | None,
     progress_lock: threading.Lock,
+    fd_budget: int,
 ) -> None:
     info, read_frame, close = open_reader(source)
     try:
@@ -351,6 +504,7 @@ def _position_worker(
                     channels=None,
                     z_slices=None,
                     on_progress=progress,
+                    fd_budget=fd_budget,
                 )
                 with results_lock:
                     results.append(result)
@@ -404,7 +558,13 @@ def run_crop(
     errors: list[BaseException] = []
     errors_lock = threading.Lock()
     progress_lock = threading.Lock()
-    worker_count = crop_position_worker_count(len(jobs))
+    fd_budget = crop_fd_budget()
+    max_roi_count = max(len(bboxes) for _, bboxes in jobs)
+    worker_count = crop_position_worker_count(
+        len(jobs),
+        max_roi_count=max_roi_count,
+        fd_budget=fd_budget,
+    )
 
     if on_progress is not None:
         on_progress(f"Starting crop with {worker_count} worker(s) for {len(jobs)} position(s)")
@@ -423,6 +583,7 @@ def run_crop(
                 errors_lock=errors_lock,
                 on_progress=on_progress,
                 progress_lock=progress_lock,
+                fd_budget=fd_budget,
             )
             for _ in range(worker_count)
         ]
