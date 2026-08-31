@@ -91,7 +91,7 @@ def parse_slide_mapping_spec(
             raise ValueError(
                 f"{source_label}: expected 'positions@signal_channel#sample_name', got {segment!r}"
             )
-
+ mar
         before_hash, sample_name = segment.rsplit("#", 1)
         sample_name = sample_name.strip()
         if not sample_name:
@@ -177,6 +177,7 @@ def validate_slide_mapping(raw: object, *, source: Path | None = None) -> SlideM
             raise ValueError(
                 f"sample_name for slide channel {slide_channel} must be a string, got {raw_sample_name!r}"
             )
+ mar
         sample_name = raw_sample_name.strip()
         if not sample_name:
             raise ValueError(f"sample_name for slide channel {slide_channel} must be non-empty")
@@ -226,3 +227,41 @@ def write_slide_mapping(mapping: SlideMapping, output_path: Path) -> Path:
     output_path.write_text(serialize_slide_mapping(mapping), encoding="utf-8")
     return output_path.resolve()
 
+
+def samples_to_mapping(samples: object, *, signal_channel: int) -> SlideMapping:
+    """Build a slide mapping from a results-notebook sample list (name + positions)."""
+    if not isinstance(samples, list) or not samples:
+        raise ValueError("SAMPLES must be a non-empty list of {name, positions} objects")
+    if not isinstance(signal_channel, int) or isinstance(signal_channel, bool) or signal_channel < 0:
+        raise ValueError(f"signal_channel must be a non-negative integer, got {signal_channel!r}")
+
+    raw: dict[int, dict[str, object]] = {}
+    seen_positions: dict[int, str] = {}
+    for index, row in enumerate(samples):
+        if not isinstance(row, dict):
+            raise ValueError(f"SAMPLES[{index}] must be an object with name and positions")
+        name = str(row.get("name", "")).strip()
+        if not name:
+            raise ValueError(f"SAMPLES[{index}] is missing a non-empty name")
+        positions_raw = row.get("positions")
+        if not isinstance(positions_raw, list) or not positions_raw:
+            raise ValueError(f"SAMPLES[{index}] ({name}) must have a non-empty positions list")
+        positions: list[int] = []
+        for entry in positions_raw:
+            if not isinstance(entry, int) or isinstance(entry, bool):
+                raise ValueError(f"SAMPLES[{index}] positions must be integers, got {entry!r}")
+            if entry < 0:
+                raise ValueError(f"SAMPLES[{index}] positions must be non-negative, got {entry}")
+            owner = seen_positions.get(entry)
+            if owner is not None:
+                raise ValueError(
+                    f"Position {entry} is listed in both {owner!r} and {name!r}"
+                )
+            seen_positions[entry] = name
+            positions.append(entry)
+        raw[index] = {
+            "positions": positions,
+            "signal_channel": signal_channel,
+            "sample_name": name,
+        }
+    return validate_slide_mapping(raw)
