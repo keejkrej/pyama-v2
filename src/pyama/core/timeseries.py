@@ -10,13 +10,13 @@ _CH_STEM = re.compile(r"^ch(\d+)$")
 
 
 def parse_timeseries_path(path: Path) -> tuple[int, int]:
-    """Parse ``(position, signal_channel)`` from ``timeseries/Pos{n}/ch{n}.csv``."""
+    """Parse ``(position, signal_channel)`` from ``analysis/Pos{n}/ch{n}.csv``."""
     resolved = path.resolve()
     parent_match = _POS_DIR.fullmatch(resolved.parent.name)
     stem_match = _CH_STEM.fullmatch(resolved.stem)
     if parent_match is None or stem_match is None:
         raise ValueError(
-            f"Cannot parse position and signal channel from timeseries path: {path}"
+            f"Cannot parse position and signal channel from analysis path: {path}"
         )
     return int(parent_match.group(1)), int(stem_match.group(1))
 

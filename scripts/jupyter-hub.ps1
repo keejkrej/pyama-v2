@@ -65,6 +65,37 @@ if (-not $UvExe -or -not (Test-Venv)) {
     }
 }
 
+function Link-RepoInHome {
+    $name = Split-Path -Leaf $RepoRoot
+    $homeFull = [IO.Path]::GetFullPath($HOME)
+    $repoFull = [IO.Path]::GetFullPath($RepoRoot)
+    $repoParent = Split-Path -Parent $repoFull
+    $script:HomeLinkName = $name
+    $script:HomeLinkKind = ""
+
+    if ($repoFull.TrimEnd('\') -eq $homeFull.TrimEnd('\') -or $repoParent.TrimEnd('\') -eq $homeFull.TrimEnd('\')) {
+        $script:HomeLinkKind = "visible"
+        return
+    }
+
+    $linkPath = Join-Path $homeFull $name
+    if (Test-Path -LiteralPath $linkPath) {
+        $existing = Get-Item -LiteralPath $linkPath
+        $isSymlink = $existing.LinkType -eq "SymbolicLink"
+        if (-not $isSymlink -and $existing.PSIsContainer) {
+            Write-Host "Warning: $linkPath already exists as a directory; not replacing it with a symlink to $repoFull."
+            return
+        }
+    }
+
+    try {
+        New-Item -ItemType SymbolicLink -Path $linkPath -Target $repoFull -Force | Out-Null
+        $script:HomeLinkKind = "symlink"
+    } catch {
+        Write-Host "Skipping home symlink (not permitted): $linkPath"
+    }
+}
+
 Push-Location $RepoRoot
 try {
     Write-Host "Registering the Lisca kernel..." -ForegroundColor Cyan
@@ -72,12 +103,22 @@ try {
     if ($LASTEXITCODE -ne 0) {
         exit [int]$LASTEXITCODE
     }
+    $HomeLinkName = ""
+    $HomeLinkKind = ""
+    Link-RepoInHome
     Write-Host ""
     Write-Host "Done. Next steps:"
     Write-Host "  1. Refresh the browser tab (or open JupyterHub again)."
-    Write-Host "  2. Open notebooks/crop.ipynb (then analyze.ipynb)."
-    Write-Host "  3. Kernel menu: pick Lisca if it is not already selected."
-    Write-Host "  4. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
+    if ($HomeLinkKind -eq "symlink") {
+        Write-Host "  2. In the file tree, open ~/$HomeLinkName (symlink to the code folder)."
+        Write-Host "  3. Open notebooks/crop.ipynb (then analyze.ipynb, then results.ipynb)."
+        Write-Host "  4. Kernel menu: pick Lisca if it is not already selected."
+        Write-Host "  5. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
+    } else {
+        Write-Host "  2. Open notebooks/crop.ipynb (then analyze.ipynb, then results.ipynb)."
+        Write-Host "  3. Kernel menu: pick Lisca if it is not already selected."
+        Write-Host "  4. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
+    }
 } finally {
     Pop-Location
 }

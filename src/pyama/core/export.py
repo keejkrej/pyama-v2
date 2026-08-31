@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
@@ -14,31 +13,24 @@ def parallel_xlsx_path(csv_path: Path) -> Path:
     return csv_path.with_suffix(XLSX_EXTENSION)
 
 
-def write_csv_and_parallel_xlsx(df: pd.DataFrame, output_csv: Path) -> Path | None:
-    """Write CSV always; write sibling XLSX only when within Excel sheet limits.
-
-    Returns the XLSX path when written, otherwise None.
-    """
+def write_csv(df: pd.DataFrame, output_csv: Path) -> Path:
+    """Write a CSV. Never writes XLSX."""
     output_csv = output_csv.resolve()
-    output_xlsx = parallel_xlsx_path(output_csv)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_csv, index=False)
+    return output_csv
 
-    def write_csv() -> None:
-        df.to_csv(output_csv, index=False)
 
+def write_xlsx(df: pd.DataFrame, output_xlsx: Path) -> Path | None:
+    """Write an XLSX. Never writes CSV.
+
+    Returns the path when written, or None when the frame exceeds the Excel row limit.
+    """
+    output_xlsx = output_xlsx.resolve()
+    output_xlsx.parent.mkdir(parents=True, exist_ok=True)
     if len(df) > EXCEL_MAX_ROWS:
-        write_csv()
         if output_xlsx.is_file():
             output_xlsx.unlink()
         return None
-
-    def write_xlsx() -> None:
-        df.to_excel(output_xlsx, index=False, engine="openpyxl")
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        csv_future = executor.submit(write_csv)
-        xlsx_future = executor.submit(write_xlsx)
-        csv_future.result()
-        xlsx_future.result()
-
+    df.to_excel(output_xlsx, index=False, engine="openpyxl")
     return output_xlsx

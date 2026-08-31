@@ -15,7 +15,7 @@ from pyama.services.timeseries import (
 
 def test_position_timeseries_path() -> None:
     path = default_position_timeseries_csv_path(Path("/workspace"), 7, 2)
-    assert path == Path("/workspace/timeseries/Pos7/ch2.csv")
+    assert path == Path("/workspace/analysis/Pos7/ch2.csv")
 
 
 def test_group_panels_by_slide_channel_aggregates_positions(tmp_path: Path) -> None:
@@ -49,10 +49,9 @@ def test_writes_csv_as_each_position_finishes(
     def fake_run_position_metrics(
         workspace: Path,
         *,
-        slide_channel: int,
         signal_channel: int,
         resolved_pos: int,
-    ) -> tuple[int, int, int, pd.DataFrame]:
+    ) -> tuple[int, int, pd.DataFrame]:
         order.append(("compute", resolved_pos))
         df = pd.DataFrame(
             {
@@ -64,7 +63,7 @@ def test_writes_csv_as_each_position_finishes(
                 "corrected": [1.0],
             }
         )
-        return (slide_channel, signal_channel, resolved_pos, df)
+        return (signal_channel, resolved_pos, df)
 
     monkeypatch.setattr(
         "pyama.services.timeseries._run_position_metrics",
@@ -75,13 +74,14 @@ def test_writes_csv_as_each_position_finishes(
         order.append(("write", position))
         assert path.is_file()
         assert rows == 1
+        assert path.suffix == ".csv"
+        assert not path.with_suffix(".xlsx").exists()
 
-    mapping = validate_slide_mapping(
-        {0: {"positions": [0, 1], "signal_channel": 1, "sample_name": "sample"}}
-    )
+    for pos in (0, 1):
+        (tmp_path / "roi" / f"Pos{pos}").mkdir(parents=True)
     result = run_slide_timeseries(
         tmp_path,
-        mapping=mapping,
+        signal_channel=1,
         on_csv_written=on_csv_written,
     )
 
@@ -105,7 +105,7 @@ def test_discovers_position_channel_tables(tmp_path: Path) -> None:
     assert discover_timeseries_csvs(tmp_path) == [first, second]
 
 
-def test_auc_resolves_slide_channel_from_path(tmp_path: Path) -> None:
+def test_auc_table_is_position_rows_without_slide_channel(tmp_path: Path) -> None:
     csv_path = tmp_path / "Pos3" / "ch1.csv"
     csv_path.parent.mkdir(parents=True)
     pd.DataFrame(
@@ -119,12 +119,10 @@ def test_auc_resolves_slide_channel_from_path(tmp_path: Path) -> None:
         }
     ).to_csv(csv_path, index=False)
 
-    mapping = validate_slide_mapping(
-        {4: {"positions": [3], "signal_channel": 1, "sample_name": "sample"}}
-    )
-    result = compute_auc_table([csv_path], interval=2.0, mapping=mapping)
-    assert result.loc[0, "slide_channel"] == 4
+    result = compute_auc_table([csv_path], interval=2.0)
+    assert result.loc[0, "pos"] == 3
     assert result.loc[0, "auc"] == 6.0
+    assert "slide_channel" not in result.columns
 
 
 def test_slide_mapping_needs_only_signal_channel() -> None:

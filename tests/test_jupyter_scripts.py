@@ -30,6 +30,9 @@ def test_jupyter_hub_registers_lisca_kernel_and_does_not_start_server() -> None:
     assert "jupyter notebook" not in text
     assert "jupyterhub-singleuser" not in text
     assert "jupyter lab" not in text
+    assert "ln -sfn" in text
+    assert 'In the file tree, open ~/$HOME_LINK_NAME (symlink to the code folder).' in text
+    assert "already exists as a directory" in text
 
 
 def test_jupyter_hub_ps1_registers_lisca_kernel_and_does_not_start_server() -> None:
@@ -39,6 +42,9 @@ def test_jupyter_hub_ps1_registers_lisca_kernel_and_does_not_start_server() -> N
     assert '--display-name "Lisca"' in text
     assert "jupyter notebook" not in text
     assert "jupyterhub-singleuser" not in text
+    assert "SymbolicLink" in text
+    assert "symlink to the code folder" in text
+    assert "already exists as a directory" in text
 
 
 def test_jupyter_notebook_starts_local_server() -> None:

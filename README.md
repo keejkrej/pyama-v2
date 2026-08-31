@@ -25,7 +25,8 @@ The UI talks to the Rust host via **Tauri IPC** (`invoke`). Use `pnpm dev:pyama`
 Experiment configuration lives in Jupyter notebooks. Typical handoff from **LiSCA Aligner** (light align → `bbox/` only, no long crop jobs in the webapp):
 
 1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/` — **this package is the Python crop goal source**
-2. **Analyze** (`notebooks/analyze.ipynb`): Config cell sets `WORKSPACE`, `INTERVAL_MINUTES`, and `SLIDE_MAPPING` — no `assay.json`. Unsegmented `timeseries` → plots → AUC → fit. Tables: `timeseries/Pos{n}/ch{n}.csv` (columns: `roi`, `t`, `area`, `background`, `sum`, `corrected`).
+2. **Analyze** (`notebooks/analyze.ipynb`): Config sets `WORKSPACE`, `INTERVAL_MINUTES`, `MAX_ONSET_MINUTES`, and one `SIGNAL_CHANNEL` (int, zero-based, applied to every Pos) — no sample names and no `sampleChannels`. Discovers `roi/Pos*` and writes `analysis/Pos{n}/ch{n}.csv`, `auc.csv`, `fit.csv` (CSV only). Merges interval, `analysis.maxOnsetMinutes`, `analysis.skipSegment` (true; no segment step), and `analysis.channels` (`signal` as `[SIGNAL_CHANNEL]`) into `assay.json` (does not write `samples[]`).
+3. **Results** (`notebooks/results.ipynb`): Config sets sample names + positions (no `SIGNAL_CHANNEL`). Merges `samples[]` into `assay.json`. If `analysis.channels.signal` is missing, writes it as a one-element list from analyze / `analysis/PosN/ch*.csv`. Does not write `sampleChannels`. Packs `results/{sample}/` (XLSX tables + single-panel PNG; no CSV). Scatter is `results/{sample}/expression_rate_vs_onset.png` (one panel per sample). Re-run plots without repeating analyze. Flexible multi-channel lists and per-slideChannel `sampleChannels` live in `assay.json` for Studio / lisca-analyze only.
 
 Nontechnical path while Studio is still in dev: Aligner → these notebooks. Power users/agents often crop here (or `lisca-crop`) then run `transfection` analysis separately.
 
@@ -43,7 +44,7 @@ uv sync --extra notebook
 - macOS / Linux: `bash scripts/jupyter-notebook.sh`
 - Windows: `.\scripts\jupyter-notebook.ps1`
 
-Opens Jupyter on the `notebooks/` folder (`crop.ipynb`, `analyze.ipynb`).
+Opens Jupyter on the `notebooks/` folder (`crop.ipynb`, `analyze.ipynb`, `results.ipynb`).
 
 ### JupyterHub
 
@@ -53,4 +54,4 @@ Unpack or copy this folder into your JupyterHub home. Then:
 bash scripts/jupyter-hub.sh
 ```
 
-Refresh the browser tab (or open JupyterHub again). Open `notebooks/crop.ipynb` (then `analyze.ipynb`). In the Kernel menu, pick **Lisca** if it is not already selected. In the Config cell, set `WORKSPACE` and `SOURCE` to the mounted data folder.
+Refresh the browser tab (or open JupyterHub again). Open `notebooks/crop.ipynb` (then `analyze.ipynb`, then `results.ipynb`). In the Kernel menu, pick **Lisca** if it is not already selected. In the Config cell, set `WORKSPACE` and `SOURCE` to the mounted data folder.

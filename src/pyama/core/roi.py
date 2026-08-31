@@ -38,6 +38,25 @@ def position_dir(dataset_root: Path, pos: int) -> Path:
     return pos_dir
 
 
+def discover_roi_positions(workspace: Path) -> list[int]:
+    """Zero-based Pos indices that have an ``roi/Pos{{n}}`` directory."""
+    roi_dir = workspace.resolve() / "roi"
+    if not roi_dir.is_dir():
+        return []
+    positions: list[int] = []
+    for path in sorted(roi_dir.glob("Pos*")):
+        if not path.is_dir():
+            continue
+        stem = path.name
+        if not stem.startswith("Pos"):
+            continue
+        try:
+            positions.append(int(stem[3:]))
+        except ValueError:
+            continue
+    return positions
+
+
 def _coerce_optional_int(value: object) -> int | None:
     return None if value is None else int(value)
 
