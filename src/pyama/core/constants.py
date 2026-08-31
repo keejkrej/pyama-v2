@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import matplotlib as mpl
 
-TIMESERIES_DIRNAME = "timeseries"
+ANALYSIS_DIRNAME = "analysis"
+# Stage name stays "timeseries"; on-disk folder is analysis/.
+TIMESERIES_DIRNAME = ANALYSIS_DIRNAME
 RESULTS_DIRNAME = "results"
 DEFAULT_QUARTILES = "0.10,0.25,0.50,0.75,0.90"
 FIGURE_DPI = 100
