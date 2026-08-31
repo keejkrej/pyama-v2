@@ -46,7 +46,7 @@ def test_run_plot_auc_writes_root_boxplots_not_per_sample(tmp_path: Path) -> Non
     assert (results / "auc.png").is_file()
     assert not (results / "auc_log.png").exists()
     assert (results / "A" / "auc.xlsx").is_file()
-    assert (results / "A" / "auc.csv").is_file()
+    assert not (results / "A" / "auc.csv").exists()
     assert not (results / "A" / "auc.png").exists()
     assert not (results / "A" / "auc_log.png").exists()
     assert not (results / "auc.csv").exists()
