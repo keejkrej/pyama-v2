@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from pyama import core as paths
-from pyama.core.export import write_csv, write_xlsx
+from pyama.core.export import write_xlsx
 from pyama.core.slide import SlideMapping
 from pyama.core.timeseries import parse_timeseries_path, resolve_slide_channel_from_path
 
@@ -44,7 +44,7 @@ def position_lookup(mapping: SlideMapping) -> dict[int, tuple[int, str]]:
 
 
 def write_sample_traces_xlsx(workspace: Path, mapping: SlideMapping) -> list[Path]:
-    """Write results/<sample>/traces.csv and traces.xlsx."""
+    """Write results/<sample>/traces.xlsx (no CSV)."""
     workspace = workspace.resolve()
     timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_analysis_dir(workspace))
     results_dir = paths.workspace_results_dir(workspace)
@@ -69,7 +69,7 @@ def write_sample_traces_xlsx(workspace: Path, mapping: SlideMapping) -> list[Pat
     for sample_name, frames in frames_by_sample.items():
         combined = pd.concat(frames, ignore_index=True)
         combined = combined.sort_values(["slide_channel", "pos", "roi", "t"]).reset_index(drop=True)
-        written.extend(_write_sample_csv_xlsx(sample_pack_dir(results_dir, sample_name), "traces", combined))
+        written.extend(_write_sample_xlsx(sample_pack_dir(results_dir, sample_name), "traces", combined))
     return written
 
 
@@ -80,7 +80,7 @@ def write_sample_table_xlsx(
     kind: str,
     df: pd.DataFrame,
 ) -> list[Path]:
-    """Write results/<sample>/{kind}.csv and .xlsx from an analysis table."""
+    """Write results/<sample>/{kind}.xlsx from an analysis table (no CSV)."""
     if "pos" not in df.columns:
         raise ValueError(f"{kind} table is missing required column: pos")
     results_dir = paths.workspace_results_dir(workspace)
@@ -102,14 +102,16 @@ def write_sample_table_xlsx(
         sort_columns = [column for column in ("slide_channel", "pos", "roi") if column in combined.columns]
         if sort_columns:
             combined = combined.sort_values(sort_columns).reset_index(drop=True)
-        written.extend(_write_sample_csv_xlsx(sample_pack_dir(results_dir, sample_name), kind, combined))
+        written.extend(_write_sample_xlsx(sample_pack_dir(results_dir, sample_name), kind, combined))
     return written
 
 
-def _write_sample_csv_xlsx(dest: Path, stem: str, df: pd.DataFrame) -> list[Path]:
-    """Write results/<sample>/{stem}.csv and .xlsx (xlsx skipped if over the Excel row limit)."""
-    written = [write_csv(df, dest / f"{stem}.csv")]
+def _write_sample_xlsx(dest: Path, stem: str, df: pd.DataFrame) -> list[Path]:
+    """Write results/<sample>/{stem}.xlsx only (skipped if over the Excel row limit)."""
+    leftover_csv = dest / f"{stem}.csv"
+    if leftover_csv.is_file():
+        leftover_csv.unlink()
     xlsx_path = write_xlsx(df, dest / f"{stem}.xlsx")
-    if xlsx_path is not None:
-        written.append(xlsx_path)
-    return written
+    if xlsx_path is None:
+        return []
+    return [xlsx_path]

@@ -10,7 +10,7 @@ from pyama.services.sample_packs import (
 )
 
 
-def test_sample_packs_write_csv_and_xlsx_under_results_sample(tmp_path: Path) -> None:
+def test_sample_packs_write_xlsx_only_under_results_sample(tmp_path: Path) -> None:
     mapping = samples_to_mapping(
         [{"name": "HeLa/wt", "positions": [0]}],
         signal_channel=1,
@@ -38,6 +38,10 @@ def test_sample_packs_write_csv_and_xlsx_under_results_sample(tmp_path: Path) ->
         }
     ).to_csv(pos_dir / "fit.csv", index=False)
 
+    sample_dir = tmp_path / "results" / filesystem_safe_sample_name("HeLa/wt")
+    sample_dir.mkdir(parents=True)
+    (sample_dir / "traces.csv").write_text("stale\n", encoding="utf-8")
+
     write_sample_traces_xlsx(tmp_path, mapping)
     write_sample_table_xlsx(
         tmp_path,
@@ -52,10 +56,9 @@ def test_sample_packs_write_csv_and_xlsx_under_results_sample(tmp_path: Path) ->
         df=pd.read_csv(pos_dir / "fit.csv"),
     )
 
-    sample_dir = tmp_path / "results" / filesystem_safe_sample_name("HeLa/wt")
     for stem in ("traces", "auc", "fit"):
         assert (sample_dir / f"{stem}.xlsx").is_file(), stem
-        assert (sample_dir / f"{stem}.csv").is_file(), stem
+        assert not (sample_dir / f"{stem}.csv").exists(), stem
 
     traces = pd.read_excel(sample_dir / "traces.xlsx")
     assert list(traces.columns) == [
@@ -70,8 +73,6 @@ def test_sample_packs_write_csv_and_xlsx_under_results_sample(tmp_path: Path) ->
         "corrected",
     ]
     assert traces.loc[0, "sample"] == "HeLa/wt"
-    traces_csv = pd.read_csv(sample_dir / "traces.csv")
-    assert list(traces_csv.columns) == list(traces.columns)
     assert not (tmp_path / "results" / "auc.csv").exists()
     assert not (tmp_path / "results" / "fit.csv").exists()
     assert not (tmp_path / "timeseries").exists()
