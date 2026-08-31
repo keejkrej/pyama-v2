@@ -111,11 +111,11 @@ try {
     Write-Host "  1. Refresh the browser tab (or open JupyterHub again)."
     if ($HomeLinkKind -eq "symlink") {
         Write-Host "  2. In the file tree, open ~/$HomeLinkName (symlink to the code folder)."
-        Write-Host "  3. Open notebooks/crop.ipynb (then analyze.ipynb)."
+        Write-Host "  3. Open notebooks/crop.ipynb (then analyze.ipynb, then results.ipynb)."
         Write-Host "  4. Kernel menu: pick Lisca if it is not already selected."
         Write-Host "  5. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
     } else {
-        Write-Host "  2. Open notebooks/crop.ipynb (then analyze.ipynb)."
+        Write-Host "  2. Open notebooks/crop.ipynb (then analyze.ipynb, then results.ipynb)."
         Write-Host "  3. Kernel menu: pick Lisca if it is not already selected."
         Write-Host "  4. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
     }

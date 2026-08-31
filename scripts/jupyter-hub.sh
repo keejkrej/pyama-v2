@@ -100,11 +100,11 @@ echo "Done. Next steps:"
 echo "  1. Refresh the browser tab (or open JupyterHub again)."
 if [[ "$HOME_LINK_KIND" == "symlink" ]]; then
   echo "  2. In the file tree, open ~/$HOME_LINK_NAME (symlink to the code folder)."
-  echo "  3. Open notebooks/crop.ipynb (then analyze.ipynb)."
+  echo "  3. Open notebooks/crop.ipynb (then analyze.ipynb, then results.ipynb)."
   echo "  4. Kernel menu: pick Lisca if it is not already selected."
   echo "  5. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
 else
-  echo "  2. Open notebooks/crop.ipynb (then analyze.ipynb)."
+  echo "  2. Open notebooks/crop.ipynb (then analyze.ipynb, then results.ipynb)."
   echo "  3. Kernel menu: pick Lisca if it is not already selected."
   echo "  4. In the Config cell, set WORKSPACE and SOURCE to the mounted data folder."
 fi

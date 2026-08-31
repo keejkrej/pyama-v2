@@ -1,6 +1,6 @@
 # Pyama
 
-Desktop app and Python analysis package for microscopy ROI workflows. Pyama aligns a grid over ND2/CZI frames and writes workspace artifacts; `crop.ipynb` performs ROI cropping and the analysis notebook runs unsegmented timeseries, AUC, and fit.
+Desktop app and Python analysis package for microscopy ROI workflows. Pyama aligns a grid over ND2/CZI frames and writes workspace artifacts; `crop.ipynb` performs ROI cropping, `analyze.ipynb` writes sample-agnostic `analysis/` CSVs, and `results.ipynb` packs per-sample plots and tables.
 
 **With LiSCA:** Aligner is the light grid/bbox shell (short-lived webapp). **ROI crop’s Python goal source is this repo** (`pyama.services.crop`, `notebooks/crop.ipynb`). Transfection analysis CLI for agents often continues in `lisca-transfection-assay`. Studio owns end-to-end for nontechnical users when ready; until then Aligner + these notebooks is the less error-prone path (no long-running jobs in the align webapp).
 
@@ -67,17 +67,22 @@ _Avoid_: crop (as the noun for the region itself — use for the crop step)
 
 **Timeseries**:
 Per-ROI intensity (or derived) values across time.
-Tables are stored per position and signal channel at `timeseries/Pos{n}/ch{n}.csv` with a parallel `.xlsx` file.
-Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`; slide join key comes from the notebook `SLIDE_MAPPING`, not `assay.json`).
-After those CSVs exist, each sample also gets a long `results/samples/<sample>/traces.csv` (and `.xlsx`) with `slide_channel,sample,pos,roi,t,area,background,sum,corrected`. `<sample>` is the filesystem-safe `SLIDE_MAPPING` `sample_name`.
+The timeseries **stage** writes CSV only under `analysis/Pos{n}/ch{n}.csv` (never XLSX; never `timeseries/`).
+Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`). `analyze.ipynb` is sample-agnostic: it discovers `roi/Pos*` and uses one `SIGNAL_CHANNEL`. Sample names are not written here.
+`results.ipynb` packs each sample to `results/<sample>/traces.xlsx` (no CSV) plus single-panel `traces.png` / `traces_summary.png` / `area.png`. `<sample>` is the filesystem-safe Config `SAMPLES[].name`.
 _Avoid_: trace, curve (as primary term)
 
 **AUC**:
 Area-under-curve summary computed from a Timeseries.
-Combined table: `results/auc.csv`. Each sample also gets its rows at `results/samples/<sample>/auc.csv` (and `.xlsx`).
+Per-position CSV: `analysis/Pos{n}/auc.csv` (columns `pos`, `roi`, `auc`). No combined `results/auc.csv`.
+User-facing pack: `results/<sample>/auc.xlsx` plus `auc.png` / `auc_log.png` (one boxplot of that sample’s ROIs).
 _Avoid_: integral score
 
 **Fit**:
-Parametric model fit applied to a Timeseries or AUC result.
-Combined table: `results/fit.csv` (kinetic columns include `translation_onset`). Each sample also gets its rows at `results/samples/<sample>/fit.csv` (and `.xlsx`).
+Parametric model fit applied to a Timeseries.
+Per-position CSV: `analysis/Pos{n}/fit.csv` (kinetic columns include `translation_onset`). No combined `results/fit.csv`.
+User-facing pack: `results/<sample>/fit.xlsx` plus single-panel plots including `expression_rate_vs_onset.png` (`translation_onset` vs `expression_rate`, r and n on the panel).
 _Avoid_: regression (as primary term)
+
+**Assay JSON**:
+`results.ipynb` setup rewrites `workspace/assay.json` from its Config (`type: transfection`, interval, `samples[].name` + `positions` + `slideChannel`, `analysis.channels.signal`). `analyze.ipynb` does not write this file.
