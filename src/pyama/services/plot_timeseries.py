@@ -208,6 +208,17 @@ def trace_naming_haystack(
     return " ".join(parts)
 
 
+def subplot_grid(n_panels: int, columns: int):
+    """Traces-style subplot grid: ``ceil(n_panels / columns)`` by ``columns``."""
+    if n_panels < 1:
+        raise ValueError("Need at least one subplot panel")
+    if columns < 1:
+        raise ValueError("columns must be >= 1")
+    rows = math.ceil(n_panels / columns)
+    fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
+    return fig, axes.flatten()
+
+
 def write_subplot_grid(
     sample_panels: list[SamplePanel],
     output_plot: Path,
@@ -219,9 +230,7 @@ def write_subplot_grid(
     columns: int,
     slide_channel_names: dict[int, str],
 ) -> None:
-    rows = math.ceil(len(sample_panels) / columns)
-    fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
-    axes_flat = axes.flatten()
+    fig, axes_flat = subplot_grid(len(sample_panels), columns)
 
     for index, (ax, (slide_channel, frames)) in enumerate(zip(axes_flat, sample_panels)):
         trace_color, trace_alpha = trace_color_alpha_from_fluor_name(

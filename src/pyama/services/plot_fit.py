@@ -90,6 +90,7 @@ def run_plot_fit(
         output_plot=rate_vs_onset_plot,
         slide_channel_names=slide_channel_names,
         columns=columns,
+        mapping=mapping,
     )
     written_paths.append(rate_vs_onset_plot)
     resolved_timeseries_csvs = infer_timeseries_csvs(resolved_fit_csv)
@@ -238,6 +239,7 @@ def write_expression_rate_vs_onset_scatter(
     output_plot: Path,
     slide_channel_names: dict[int, str],
     columns: int = 3,
+    mapping: SlideMapping | None = None,
 ) -> None:
     scatter_df = df.loc[df["success"]].copy()
     finite = np.isfinite(scatter_df["expression_rate"]) & np.isfinite(scatter_df["translation_onset"])
@@ -245,18 +247,22 @@ def write_expression_rate_vs_onset_scatter(
     if scatter_df.empty:
         raise ValueError("No successful finite rows available to plot expression rate vs translation onset")
 
-    slide_channels = sorted(scatter_df["slide_channel"].unique().tolist())
-    rows = math.ceil(len(slide_channels) / columns)
-    fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
-    axes_flat = axes.flatten()
+    if mapping is not None:
+        slide_channels = list(mapping)
+    else:
+        slide_channels = sorted(scatter_df["slide_channel"].unique().tolist())
+    fig, axes_flat = plot_timeseries.subplot_grid(len(slide_channels), columns)
 
     for ax, slide_channel in zip(axes_flat, slide_channels):
         group = scatter_df.loc[scatter_df["slide_channel"] == slide_channel]
         x = group["translation_onset"].to_numpy(dtype=float)
         y = group["expression_rate"].to_numpy(dtype=float)
-        trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(
-            slide_channel_names.get(slide_channel, f"slide channel {slide_channel}")
+        sample_label = (
+            mapping[slide_channel].sample_name
+            if mapping is not None
+            else slide_channel_names.get(slide_channel, f"slide channel {slide_channel}")
         )
+        trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(sample_label)
         ax.scatter(x, y, color=trace_color, alpha=0.55, s=18)
         ax.set_title(
             plot_timeseries.subplot_title(
@@ -312,9 +318,7 @@ def write_fitted_trace_grid(
 ) -> None:
     panels = [(csv_path, load_timeseries_csv(csv_path)) for csv_path in timeseries_csvs]
     sample_panels = plot_timeseries.group_panels_by_slide_channel(panels, mapping)
-    rows = math.ceil(len(sample_panels) / columns)
-    fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
-    axes_flat = axes.flatten()
+    fig, axes_flat = plot_timeseries.subplot_grid(len(sample_panels), columns)
     fit_lookup = (
         fit_df.loc[fit_df["success"]]
         .set_index(["slide_channel", "pos", "roi"], drop=False)

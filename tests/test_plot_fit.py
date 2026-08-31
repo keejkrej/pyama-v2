@@ -33,18 +33,17 @@ def test_write_expression_rate_vs_onset_scatter_uses_successful_finite_rows(tmp_
     assert output_plot.stat().st_size > 0
 
 
-def test_expression_rate_vs_onset_scatter_uses_traces_style_grid(
+def test_expression_rate_vs_onset_is_per_sample_subplots_not_overlay(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    captured: dict[str, object] = {}
-    real_subplots = plot_fit.plt.subplots
-
-    def fake_subplots(*args, **kwargs):
-        captured["args"] = args
-        captured["kwargs"] = kwargs
-        return real_subplots(*args, **kwargs)
-
-    monkeypatch.setattr(plot_fit.plt, "subplots", fake_subplots)
+    kept: list[object] = []
+    monkeypatch.setattr(plot_fit.plt, "close", lambda fig=None: kept.append(fig))
+    mapping = validate_slide_mapping(
+        {
+            0: {"positions": [0], "signal_channel": 1, "sample_name": "A"},
+            1: {"positions": [1], "signal_channel": 1, "sample_name": "B"},
+        }
+    )
     df = pd.DataFrame(
         {
             "slide_channel": [0, 0, 1, 1],
@@ -58,9 +57,19 @@ def test_expression_rate_vs_onset_scatter_uses_traces_style_grid(
         output_plot=tmp_path / "expression_rate_vs_onset.png",
         slide_channel_names={0: "A", 1: "B"},
         columns=3,
+        mapping=mapping,
     )
-    assert captured["args"][:2] == (1, 3)
-    assert captured["kwargs"]["squeeze"] is False
+    fig = kept[0]
+    scatter_axes = [ax for ax in fig.axes if ax.collections]
+    assert len(scatter_axes) == 2
+    assert {ax.get_title() for ax in scatter_axes} == {"A", "B"}
+    for ax in scatter_axes:
+        assert ax.get_legend() is None
+        _handles, labels = ax.get_legend_handles_labels()
+        assert labels == []
+        assert ax.get_xlabel() == "translation onset"
+        assert ax.get_ylabel() == "expression rate"
+        assert len(ax.collections) == 1
 
 
 def test_run_plot_fit_writes_expression_rate_vs_onset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
