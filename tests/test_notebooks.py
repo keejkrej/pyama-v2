@@ -16,6 +16,15 @@ def test_analyze_notebook_is_sample_agnostic() -> None:
     assert "merge_results_assay_json" not in text
     assert "SAMPLES" not in text
     assert "MASK_CHANNEL" not in text
+    assert "Not the ND2/CZI file" in text
+    assert "onset is fixed at 0" in text
+
+
+def test_crop_notebook_config_comments_positions() -> None:
+    text = (REPO / "notebooks" / "crop.ipynb").read_text(encoding="utf-8")
+    assert "POSITIONS" in text
+    assert "0..158" in text
+    assert "bbox/Pos" in text
 
 
 def test_results_notebook_owns_samples_and_plots() -> None:

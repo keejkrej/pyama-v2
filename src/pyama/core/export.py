@@ -14,7 +14,7 @@ def parallel_xlsx_path(csv_path: Path) -> Path:
 
 
 def write_csv(df: pd.DataFrame, output_csv: Path) -> Path:
-    """Write a CSV only (analysis/ artifacts). Never writes XLSX."""
+    """Write a CSV. Never writes XLSX."""
     output_csv = output_csv.resolve()
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_csv, index=False)
@@ -22,7 +22,7 @@ def write_csv(df: pd.DataFrame, output_csv: Path) -> Path:
 
 
 def write_xlsx(df: pd.DataFrame, output_xlsx: Path) -> Path | None:
-    """Write an XLSX only (results/<sample>/ tables). Never writes CSV.
+    """Write an XLSX. Never writes CSV.
 
     Returns the path when written, or None when the frame exceeds the Excel row limit.
     """
