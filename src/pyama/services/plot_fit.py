@@ -12,14 +12,10 @@ import pandas as pd
 
 from pyama import core as paths
 from pyama import core as plot_layout
-from pyama.services import plot_auc, plot_timeseries
-from pyama.core import (
-    boxplot_tick_labels,
-    boxplot_x_axis_label,
-    load_timeseries_csv,
-    trace_color_alpha_from_fluor_name,
-)
+from pyama.core import load_timeseries_csv, trace_color_alpha_from_fluor_name
 from pyama.core.slide import SlideMapping
+from pyama.services import fit, plot_auc, plot_timeseries
+from pyama.services.sample_packs import position_lookup, sample_pack_dir, write_sample_table_xlsx
 
 PLOTTED_PARAMETERS = (
     ("intensity_offset", "intensity offset"),
@@ -38,90 +34,87 @@ FIT_TRACE_PARAMETERS = (
 
 
 def run_plot_fit(
-    fit_csv: Path,
     *,
-    slide_channel_names: dict[int, str],
+    workspace: Path,
     interval: float,
     mapping: SlideMapping,
-    output: Path | None = None,
-    columns: int = 3,
+    slide_channel_names: dict[int, str] | None = None,
 ) -> list[Path]:
-    """Plot fit results; ``mapping`` comes from the notebook Config cell (not assay.json)."""
-    resolved_fit_csv = fit_csv.resolve()
-    df = load_fit_csv(resolved_fit_csv)
-    output_paths = default_output_plot_paths(resolved_fit_csv, output)
-    written_paths: list[Path] = []
-    for parameter, label in PLOTTED_PARAMETERS:
-        output_plot = output_paths[parameter]
-        if parameter == "expression_rate":
-            write_fit_boxplot(
-                df,
-                parameter=parameter,
-                ylabel=label,
-                output_plot=output_plot,
-                slide_channel_names=slide_channel_names,
-                log_scale=False,
-            )
-            written_paths.append(output_plot)
-            log_output_plot = plot_auc.log_output_plot_path(output_plot)
-            write_fit_boxplot(
-                df,
-                parameter=parameter,
-                ylabel=label,
-                output_plot=log_output_plot,
-                slide_channel_names=slide_channel_names,
-                log_scale=True,
-            )
-            written_paths.append(log_output_plot)
+    """Read analysis/PosN/fit.csv and write results/<sample>/ fit.xlsx + pngs."""
+    if interval <= 0:
+        raise ValueError(f"--interval must be > 0, got {interval}")
+    workspace = workspace.resolve()
+    df = prepare_fit_table(fit.load_analysis_fit_table(workspace), mapping)
+    labels = slide_channel_names or paths.slide_channel_labels(mapping)
+    results_dir = paths.workspace_results_dir(workspace)
+    written: list[Path] = []
+    written.extend(write_sample_table_xlsx(workspace, mapping, kind="fit", df=df))
+
+    analysis_csvs = paths.discover_timeseries_csvs(paths.require_analysis_dir(workspace))
+    panels = [(csv_path, load_timeseries_csv(csv_path)) for csv_path in analysis_csvs]
+    sample_panels = plot_timeseries.group_panels_by_slide_channel(panels, mapping)
+
+    for slide_channel, entry in mapping.items():
+        sample_df = df.loc[df["slide_channel"] == slide_channel].copy()
+        if sample_df.empty:
             continue
-
-        write_fit_boxplot(
-            df,
-            parameter=parameter,
-            ylabel=label,
-            output_plot=output_plot,
-            slide_channel_names=slide_channel_names,
-            log_scale=False,
+        dest = sample_pack_dir(results_dir, entry.sample_name)
+        label = labels.get(slide_channel, entry.sample_name)
+        for parameter, parameter_label in PLOTTED_PARAMETERS:
+            written.append(
+                plot_auc.write_sample_boxplot(
+                    sample_df[parameter].to_numpy(dtype=float),
+                    sample_label=label,
+                    ylabel=parameter_label,
+                    output_plot=dest / f"{parameter}.png",
+                    log_scale=False,
+                )
+            )
+            if parameter == "expression_rate":
+                written.append(
+                    plot_auc.write_sample_boxplot(
+                        sample_df[parameter].to_numpy(dtype=float),
+                        sample_label=label,
+                        ylabel=parameter_label,
+                        output_plot=dest / "expression_rate_log.png",
+                        log_scale=True,
+                    )
+                )
+        written.append(
+            write_expression_rate_vs_onset_scatter(
+                sample_df,
+                output_plot=dest / "expression_rate_vs_onset.png",
+                sample_label=label,
+            )
         )
-        written_paths.append(output_plot)
-    rate_vs_onset_plot = default_rate_vs_onset_plot_path(resolved_fit_csv, output)
-    write_expression_rate_vs_onset_scatter(
-        df,
-        output_plot=rate_vs_onset_plot,
-        slide_channel_names=slide_channel_names,
-        columns=columns,
-        mapping=mapping,
-    )
-    written_paths.append(rate_vs_onset_plot)
-    resolved_timeseries_csvs = infer_timeseries_csvs(resolved_fit_csv)
-    fit_trace_plot = default_trace_plot_path(resolved_fit_csv, output)
-    write_fitted_trace_grid(
-        df,
-        resolved_timeseries_csvs,
-        fit_trace_plot,
-        interval=interval,
-        columns=columns,
-        slide_channel_names=slide_channel_names,
-        mapping=mapping,
-    )
-    written_paths.append(fit_trace_plot)
-    return written_paths
+        sample_frames = dict(sample_panels).get(slide_channel, [])
+        if sample_frames:
+            written.append(
+                write_sample_fitted_traces(
+                    sample_df,
+                    sample_frames,
+                    dest / "traces_fit.png",
+                    interval=interval,
+                    sample_label=label,
+                    slide_channel=slide_channel,
+                    slide_channel_names=labels,
+                )
+            )
+    return written
 
 
-def load_fit_csv(fit_csv: Path) -> pd.DataFrame:
-    df = pd.read_csv(fit_csv)
-    required = {"slide_channel", "pos", "roi", "success", *FIT_TRACE_PARAMETERS}
+def prepare_fit_table(df: pd.DataFrame, mapping: SlideMapping) -> pd.DataFrame:
+    required = {"pos", "roi", "success", *FIT_TRACE_PARAMETERS}
     missing = required.difference(df.columns)
     if missing:
-        raise ValueError(f"{fit_csv} is missing required columns for fit plotting: {sorted(missing)}")
+        raise ValueError(f"analysis fit tables are missing required columns: {sorted(missing)}")
 
-    keep_columns = ["slide_channel", "pos", "roi", "success", *FIT_TRACE_PARAMETERS]
+    keep_columns = [column for column in ("pos", "roi", "success", *FIT_TRACE_PARAMETERS) if column in df.columns]
     df = df.loc[:, keep_columns].copy()
-    df = df.dropna(subset=["slide_channel"])
+    df = df.dropna(subset=["pos"])
     if df.empty:
-        raise ValueError(f"{fit_csv} has no fit rows with slide_channel values")
+        raise ValueError("analysis fit tables have no rows with pos values")
 
-    df["slide_channel"] = df["slide_channel"].astype(int)
     df["pos"] = pd.to_numeric(df["pos"], errors="coerce").astype("Int64")
     df["roi"] = pd.to_numeric(df["roi"], errors="coerce").astype("Int64")
     df["success"] = df["success"].astype(str).str.lower().eq("true")
@@ -132,86 +125,27 @@ def load_fit_csv(fit_csv: Path) -> pd.DataFrame:
     if "mrna_lifetime" not in df.columns:
         df["mrna_lifetime"] = 1.0 / df["mrna_decay_rate"]
     if "expression_rate" not in df.columns:
-        if "transfection_efficiency" in df.columns:
-            df["expression_rate"] = df["transfection_efficiency"]
-        else:
-            df["expression_rate"] = df["expression_amplitude"] * (df["mrna_decay_rate"] - df["protein_decay_rate"])
+        df["expression_rate"] = df["expression_amplitude"] * (df["mrna_decay_rate"] - df["protein_decay_rate"])
+
+    lookup = position_lookup(mapping)
+    slide_channels: list[int] = []
+    sample_names: list[str] = []
+    keep_rows: list[bool] = []
+    for pos in df["pos"].tolist():
+        mapped = lookup.get(int(pos)) if pd.notna(pos) else None
+        if mapped is None:
+            keep_rows.append(False)
+            slide_channels.append(-1)
+            sample_names.append("")
+            continue
+        keep_rows.append(True)
+        slide_channel, sample_name = mapped
+        slide_channels.append(slide_channel)
+        sample_names.append(sample_name)
+    df = df.loc[keep_rows].copy()
+    df["slide_channel"] = [sc for sc, keep in zip(slide_channels, keep_rows) if keep]
+    df["sample"] = [name for name, keep in zip(sample_names, keep_rows) if keep]
     return df.sort_values(["slide_channel", "pos", "roi"]).reset_index(drop=True)
-
-
-def default_output_plot_paths(fit_csv: Path, output: Path | None) -> dict[str, Path]:
-    destination_dir = fit_csv.parent if output is None else output.resolve()
-    return {parameter: destination_dir / f"{parameter}.png" for parameter, _ in PLOTTED_PARAMETERS}
-
-
-def default_trace_plot_path(fit_csv: Path, output: Path | None) -> Path:
-    destination_dir = fit_csv.parent if output is None else output.resolve()
-    return destination_dir / "traces_fit.png"
-
-
-def default_rate_vs_onset_plot_path(fit_csv: Path, output: Path | None) -> Path:
-    destination_dir = fit_csv.parent if output is None else output.resolve()
-    return destination_dir / "expression_rate_vs_onset.png"
-
-
-def infer_timeseries_csvs(fit_csv: Path) -> list[Path]:
-    resolved = fit_csv.resolve()
-    if resolved.name != "fit.csv":
-        raise ValueError(f"Expected fit summary CSV named fit.csv, got {resolved.name!r} ({resolved})")
-    parent = resolved.parent
-    if parent.name != paths.RESULTS_DIRNAME:
-        raise ValueError(
-            f"Expected fit.csv under <workspace>/{paths.RESULTS_DIRNAME}/, got {resolved}"
-        )
-    timeseries_dir = parent.parent / paths.TIMESERIES_DIRNAME
-    return paths.discover_timeseries_csvs(timeseries_dir)
-
-
-def write_fit_boxplot(
-    df: pd.DataFrame,
-    *,
-    parameter: str,
-    ylabel: str,
-    output_plot: Path,
-    slide_channel_names: dict[int, str],
-    log_scale: bool,
-) -> None:
-    parameter_df = df.dropna(subset=[parameter]).copy()
-    if log_scale:
-        parameter_df = parameter_df.loc[parameter_df[parameter] > 0].copy()
-    if parameter_df.empty:
-        raise ValueError(f"No finite rows available to plot parameter {parameter!r}")
-
-    slide_channels = sorted(parameter_df["slide_channel"].unique().tolist())
-    trace_counts = [
-        int(parameter_df.loc[parameter_df["slide_channel"] == slide_channel, parameter].shape[0])
-        for slide_channel in slide_channels
-    ]
-    grouped_values = [
-        parameter_df.loc[parameter_df["slide_channel"] == slide_channel, parameter].to_numpy(dtype=float)
-        for slide_channel in slide_channels
-    ]
-
-    fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
-    ax.boxplot(
-        grouped_values,
-        tick_labels=boxplot_tick_labels(slide_channels, trace_counts, slide_channel_names),
-    )
-
-    ax.set_xlabel(boxplot_x_axis_label(slide_channel_names))
-    ax.set_ylabel(ylabel)
-    if log_scale:
-        ax.set_yscale("log")
-    else:
-        arrays = [values for values in grouped_values if values.size]
-        y_low, y_high = plot_timeseries.percentile_ylim(
-            np.concatenate(arrays) if arrays else np.array([])
-        )
-        ax.set_ylim(y_low, y_high)
-
-    output_plot.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
-    plt.close(fig)
 
 
 def pearson_r(x: np.ndarray, y: np.ndarray) -> float | None:
@@ -237,59 +171,39 @@ def write_expression_rate_vs_onset_scatter(
     df: pd.DataFrame,
     *,
     output_plot: Path,
-    slide_channel_names: dict[int, str],
-    columns: int = 3,
-    mapping: SlideMapping | None = None,
-) -> None:
+    sample_label: str,
+) -> Path:
     scatter_df = df.loc[df["success"]].copy()
     finite = np.isfinite(scatter_df["expression_rate"]) & np.isfinite(scatter_df["translation_onset"])
     scatter_df = scatter_df.loc[finite].copy()
     if scatter_df.empty:
-        raise ValueError("No successful finite rows available to plot expression rate vs translation onset")
-
-    if mapping is not None:
-        slide_channels = list(mapping)
-    else:
-        slide_channels = sorted(scatter_df["slide_channel"].unique().tolist())
-    fig, axes_flat = plot_timeseries.subplot_grid(len(slide_channels), columns)
-
-    for ax, slide_channel in zip(axes_flat, slide_channels):
-        group = scatter_df.loc[scatter_df["slide_channel"] == slide_channel]
-        x = group["translation_onset"].to_numpy(dtype=float)
-        y = group["expression_rate"].to_numpy(dtype=float)
-        sample_label = (
-            mapping[slide_channel].sample_name
-            if mapping is not None
-            else slide_channel_names.get(slide_channel, f"slide channel {slide_channel}")
-        )
-        trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(sample_label)
-        ax.scatter(x, y, color=trace_color, alpha=0.55, s=18)
-        ax.set_title(
-            plot_timeseries.subplot_title(
-                slide_channel, slide_channel_names=slide_channel_names
-            )
-        )
-        ax.set_xlabel("translation onset")
-        ax.set_ylabel("expression rate")
-        x_low, x_high = plot_timeseries.percentile_ylim(x)
-        y_low, y_high = plot_timeseries.percentile_ylim(y)
-        ax.set_xlim(x_low, x_high)
-        ax.set_ylim(y_low, y_high)
-        ax.annotate(
-            pearson_annotation(pearson_r(x, y), int(x.size)),
-            xy=(0.05, 0.95),
-            xycoords="axes fraction",
-            va="top",
-            ha="left",
+        raise ValueError(
+            f"No successful finite rows available to plot expression rate vs translation onset for {sample_label!r}"
         )
 
-    for ax in axes_flat[len(slide_channels):]:
-        ax.axis("off")
-
-    fig.tight_layout()
+    x = scatter_df["translation_onset"].to_numpy(dtype=float)
+    y = scatter_df["expression_rate"].to_numpy(dtype=float)
+    trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(sample_label)
+    fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
+    ax.scatter(x, y, color=trace_color, alpha=0.55, s=18)
+    ax.set_title(sample_label)
+    ax.set_xlabel("translation onset")
+    ax.set_ylabel("expression rate")
+    x_low, x_high = plot_timeseries.percentile_ylim(x)
+    y_low, y_high = plot_timeseries.percentile_ylim(y)
+    ax.set_xlim(x_low, x_high)
+    ax.set_ylim(y_low, y_high)
+    ax.annotate(
+        pearson_annotation(pearson_r(x, y), int(x.size)),
+        xy=(0.05, 0.95),
+        xycoords="axes fraction",
+        va="top",
+        ha="left",
+    )
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
+    return output_plot
 
 
 def fitted_trace_values(times_minutes: np.ndarray, fit_row: pd.Series) -> np.ndarray:
@@ -306,77 +220,60 @@ def fitted_trace_values(times_minutes: np.ndarray, fit_row: pd.Series) -> np.nda
     return predicted
 
 
-def write_fitted_trace_grid(
+def write_sample_fitted_traces(
     fit_df: pd.DataFrame,
-    timeseries_csvs: list[Path],
+    frames: list[tuple[Path, pd.DataFrame]],
     output_plot: Path,
     *,
     interval: float,
-    columns: int,
+    sample_label: str,
+    slide_channel: int,
     slide_channel_names: dict[int, str],
-    mapping: SlideMapping,
-) -> None:
-    panels = [(csv_path, load_timeseries_csv(csv_path)) for csv_path in timeseries_csvs]
-    sample_panels = plot_timeseries.group_panels_by_slide_channel(panels, mapping)
-    fig, axes_flat = plot_timeseries.subplot_grid(len(sample_panels), columns)
+) -> Path:
+    fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
     fit_lookup = (
         fit_df.loc[fit_df["success"]]
         .set_index(["slide_channel", "pos", "roi"], drop=False)
         .sort_index()
     )
-    plotted_trace_count = 0
+    trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
+        plot_timeseries.trace_naming_haystack(slide_channel, frames, slide_channel_names)
+    )
+    matched_traces = 0
+    sample_values: list[np.ndarray] = []
+    for _csv_path, df in frames:
+        sample_values.append(plot_timeseries.panel_values(df, "corrected"))
+        trace_groups = df.groupby(plot_timeseries.trace_group_columns(df), sort=True, dropna=False)
+        for group_key, trace_df in trace_groups:
+            if not isinstance(group_key, tuple):
+                group_key = (group_key,)
+            group_values = dict(zip(plot_timeseries.trace_group_columns(df), group_key, strict=True))
+            pos = int(group_values.get("pos", 0))
+            roi = int(group_values["roi"])
+            lookup_key = (slide_channel, pos, roi)
+            if lookup_key not in fit_lookup.index:
+                continue
+            fit_row = fit_lookup.loc[lookup_key]
+            times_minutes = trace_df["t"].astype(float).to_numpy(dtype=float) * interval
+            predicted = fitted_trace_values(times_minutes, fit_row)
+            ax.plot(times_minutes, predicted, color=trace_color, alpha=trace_alpha)
+            matched_traces += 1
 
-    for ax, (slide_channel, frames) in zip(axes_flat, sample_panels):
-        trace_color, trace_alpha = trace_color_alpha_from_fluor_name(
-            plot_timeseries.trace_naming_haystack(slide_channel, frames, slide_channel_names)
-        )
-        matched_traces = 0
-        sample_values: list[np.ndarray] = []
-        for _csv_path, df in frames:
-            sample_values.append(plot_timeseries.panel_values(df, "corrected"))
-            trace_groups = df.groupby(plot_timeseries.trace_group_columns(df), sort=True, dropna=False)
-            for group_key, trace_df in trace_groups:
-                if not isinstance(group_key, tuple):
-                    group_key = (group_key,)
-                group_values = dict(
-                    zip(plot_timeseries.trace_group_columns(df), group_key, strict=True)
-                )
-                pos = int(group_values.get("pos", 0))
-                roi = int(group_values["roi"])
-                lookup_key = (slide_channel, pos, roi)
-                if lookup_key not in fit_lookup.index:
-                    continue
-
-                fit_row = fit_lookup.loc[lookup_key]
-                times_minutes = trace_df["t"].astype(float).to_numpy(dtype=float) * interval
-                predicted = fitted_trace_values(times_minutes, fit_row)
-                ax.plot(times_minutes, predicted, color=trace_color, alpha=trace_alpha)
-                matched_traces += 1
-                plotted_trace_count += 1
-
-        ax.set_title(
-            plot_timeseries.subplot_title(
-                slide_channel, matched_traces, slide_channel_names=slide_channel_names
-            )
-        )
-        ax.set_xlabel("time (min)")
-        ax.set_ylabel("corrected intensity")
-        y_low, y_high = plot_timeseries.percentile_ylim(
-            np.concatenate(sample_values) if sample_values else np.array([])
-        )
-        ax.set_ylim(y_low, y_high)
-
-    for ax in axes_flat[len(sample_panels):]:
-        ax.axis("off")
-
-    if plotted_trace_count == 0:
+    if matched_traces == 0:
         plt.close(fig)
-        raise ValueError("No successful fit rows matched the inferred timeseries CSVs")
+        raise ValueError(f"No successful fit rows matched analysis traces for {sample_label!r}")
 
-    fig.tight_layout()
+    ax.set_title(f"{sample_label} ({matched_traces} traces)")
+    ax.set_xlabel("time (min)")
+    ax.set_ylabel("corrected intensity")
+    y_low, y_high = plot_timeseries.percentile_ylim(
+        np.concatenate(sample_values) if sample_values else np.array([])
+    )
+    ax.set_ylim(y_low, y_high)
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
+    return output_plot
 
 
 def format_written_fit_plot_messages(output_plots: list[Path]) -> list[str]:
