@@ -69,19 +69,19 @@ _Avoid_: crop (as the noun for the region itself — use for the crop step)
 Per-ROI intensity (or derived) values across time.
 The timeseries **stage** writes CSV only under `analysis/Pos{n}/ch{n}.csv` (never XLSX; never `timeseries/`).
 Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`). `analyze.ipynb` is sample-agnostic: it discovers `roi/Pos*` and uses one `SIGNAL_CHANNEL`. Sample names are not written here.
-`results.ipynb` packs each sample to `results/<sample>/traces.xlsx` (no CSV) plus single-panel `traces.png` / `traces_summary.png` (mean/median/IQR) / `area.png`, and shared-y companions `traces_shared_y.png` / `traces_summary_shared_y.png` / `area_shared_y.png` (same traces; ylim pooled across samples). No `area_summary.png`. `<sample>` is the filesystem-safe Config `SAMPLES[].name`.
+`results.ipynb` packs each sample to `results/{sample}/traces.csv` + `traces.xlsx` plus single-panel `traces.png` / `traces_summary.png` (mean/median/IQR) / `area.png`, and shared-y companions `traces_shared_y.png` / `traces_summary_shared_y.png` / `area_shared_y.png` (same traces; ylim pooled across samples). No `area_summary.png`. `{sample}` is the filesystem-safe Config `SAMPLES[].name`.
 _Avoid_: trace, curve (as primary term)
 
 **AUC**:
 Area-under-curve summary computed from a Timeseries.
 Per-position CSV: `analysis/Pos{n}/auc.csv` (columns `pos`, `roi`, `auc`). No combined `results/auc.csv`.
-User-facing pack: `results/<sample>/auc.xlsx` (no per-sample `auc.png`). Cross-sample boxplot `results/auc.png` (samples on x, linear). No `auc_log.png`.
+User-facing pack: `results/{sample}/auc.csv` + `auc.xlsx` (no per-sample `auc.png`). Cross-sample boxplot `results/auc.png` (samples on x, linear). No `auc_log.png`.
 _Avoid_: integral score
 
 **Fit**:
 Parametric model fit applied to a Timeseries.
 Per-position CSV: `analysis/Pos{n}/fit.csv` (kinetic columns include `translation_onset`). No combined `results/fit.csv`.
-User-facing pack: `results/<sample>/fit.xlsx` plus `traces_fit.png`, `traces_fit_shared_y.png` (same traces; ylim pooled across samples), and `expression_rate_vs_onset.png` (`translation_onset` vs `expression_rate`, r and n on the panel). Parameter boxplots (`baseline_intensity.png`, `protein_lifetime.png`, `mrna_lifetime.png`, `onset_time.png`, `expression_rate.png`) are written once at `results/` root (samples on x, linear). No `expression_rate_log.png`.
+User-facing pack: `results/{sample}/fit.csv` + `fit.xlsx` plus `traces_fit.png`, `traces_fit_shared_y.png` (same traces; ylim pooled across samples). `results/expression_rate_vs_onset.png` is a per-sample subplot grid (`translation_onset` vs `expression_rate`, r and n on each panel; not an overlay). Parameter boxplots (`baseline_intensity.png`, `protein_lifetime.png`, `mrna_lifetime.png`, `onset_time.png`, `expression_rate.png`) are written once at `results/` root (samples on x, linear). No `expression_rate_log.png`.
 _Avoid_: regression (as primary term)
 
 **Assay JSON**:
