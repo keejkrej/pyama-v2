@@ -41,7 +41,7 @@ def run_plot_fit(
     mapping: SlideMapping,
     slide_channel_names: dict[int, str] | None = None,
 ) -> list[Path]:
-    """Write per-sample fit.csv/.xlsx + traces_fit; scatter grid and boxplots at results/ root."""
+    """Write per-sample fit.xlsx + traces_fit + scatter; boxplots at results/ root."""
     if interval <= 0:
         raise ValueError(f"--interval must be > 0, got {interval}")
     workspace = workspace.resolve()
@@ -56,21 +56,30 @@ def run_plot_fit(
     sample_panels = plot_timeseries.group_panels_by_slide_channel(panels, mapping)
     fit_shared_ylim = plot_timeseries.pooled_column_ylim(sample_panels, "corrected")
 
-    written.append(
-        write_expression_rate_vs_onset_scatter(
-            df,
-            output_plot=results_dir / "expression_rate_vs_onset.png",
-            slide_channel_names=labels,
-            mapping=mapping,
-        )
-    )
-
     for slide_channel, entry in mapping.items():
         sample_df = df.loc[df["slide_channel"] == slide_channel].copy()
         if sample_df.empty:
             continue
         dest = sample_pack_dir(results_dir, entry.sample_name)
         label = labels.get(slide_channel, entry.sample_name)
+        scatter_rows = sample_df.loc[sample_df["success"]]
+        has_scatter = (
+            not scatter_rows.empty
+            and bool(
+                (
+                    np.isfinite(scatter_rows["expression_rate"])
+                    & np.isfinite(scatter_rows["translation_onset"])
+                ).any()
+            )
+        )
+        if has_scatter:
+            written.append(
+                write_expression_rate_vs_onset_scatter(
+                    sample_df,
+                    output_plot=dest / "expression_rate_vs_onset.png",
+                    sample_label=label,
+                )
+            )
         sample_frames = dict(sample_panels).get(slide_channel, [])
         if sample_frames:
             written.append(
@@ -178,55 +187,35 @@ def write_expression_rate_vs_onset_scatter(
     df: pd.DataFrame,
     *,
     output_plot: Path,
-    slide_channel_names: dict[int, str],
-    columns: int = 3,
-    mapping: SlideMapping | None = None,
+    sample_label: str,
 ) -> Path:
-    """One scatter panel per sample (not an overlay). Filename stays expression_rate_vs_onset.png."""
+    """Single-panel scatter for one sample: translation_onset vs expression_rate, r and n."""
     scatter_df = df.loc[df["success"]].copy()
     finite = np.isfinite(scatter_df["expression_rate"]) & np.isfinite(scatter_df["translation_onset"])
     scatter_df = scatter_df.loc[finite].copy()
     if scatter_df.empty:
         raise ValueError("No successful finite rows available to plot expression rate vs translation onset")
 
-    if mapping is not None:
-        slide_channels = list(mapping)
-    else:
-        slide_channels = sorted(int(channel) for channel in scatter_df["slide_channel"].unique().tolist())
-    fig, axes_flat = plot_timeseries.subplot_grid(len(slide_channels), columns)
+    x = scatter_df["translation_onset"].to_numpy(dtype=float)
+    y = scatter_df["expression_rate"].to_numpy(dtype=float)
+    fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
+    trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(sample_label)
+    ax.scatter(x, y, color=trace_color, alpha=0.55, s=18)
+    ax.set_title(sample_label)
+    ax.set_xlabel("translation onset")
+    ax.set_ylabel("expression rate")
+    x_low, x_high = plot_timeseries.percentile_ylim(x)
+    y_low, y_high = plot_timeseries.percentile_ylim(y)
+    ax.set_xlim(x_low, x_high)
+    ax.set_ylim(y_low, y_high)
+    ax.annotate(
+        pearson_annotation(pearson_r(x, y), int(x.size)),
+        xy=(0.05, 0.95),
+        xycoords="axes fraction",
+        va="top",
+        ha="left",
+    )
 
-    for ax, slide_channel in zip(axes_flat, slide_channels):
-        group = scatter_df.loc[scatter_df["slide_channel"] == slide_channel]
-        x = group["translation_onset"].to_numpy(dtype=float)
-        y = group["expression_rate"].to_numpy(dtype=float)
-        sample_label = (
-            mapping[slide_channel].sample_name
-            if mapping is not None
-            else slide_channel_names.get(slide_channel, f"slide channel {slide_channel}")
-        )
-        trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(sample_label)
-        ax.scatter(x, y, color=trace_color, alpha=0.55, s=18)
-        ax.set_title(
-            plot_timeseries.subplot_title(slide_channel, slide_channel_names=slide_channel_names)
-        )
-        ax.set_xlabel("translation onset")
-        ax.set_ylabel("expression rate")
-        x_low, x_high = plot_timeseries.percentile_ylim(x)
-        y_low, y_high = plot_timeseries.percentile_ylim(y)
-        ax.set_xlim(x_low, x_high)
-        ax.set_ylim(y_low, y_high)
-        ax.annotate(
-            pearson_annotation(pearson_r(x, y), int(x.size)),
-            xy=(0.05, 0.95),
-            xycoords="axes fraction",
-            va="top",
-            ha="left",
-        )
-
-    for ax in axes_flat[len(slide_channels) :]:
-        ax.axis("off")
-
-    fig.tight_layout()
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
