@@ -48,7 +48,6 @@ def run_plot_auc(
                 log_scale=False,
             )
         )
- mar
         written.append(
             write_sample_boxplot(
                 sample_df["auc"].to_numpy(dtype=float),
