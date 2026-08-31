@@ -8,6 +8,12 @@ from pyama.core.slide import validate_slide_mapping
 from pyama.services import plot_fit
 
 
+def test_pearson_annotation_omits_r_when_undefined() -> None:
+    assert plot_fit.pearson_annotation(0.5, 12) == "r = 0.50\nn = 12"
+    assert plot_fit.pearson_annotation(None, 1) == "n = 1"
+    assert plot_fit.pearson_r(np.array([1.0]), np.array([2.0])) is None
+
+
 def test_write_expression_rate_vs_onset_scatter_uses_successful_finite_rows(tmp_path: Path) -> None:
     df = pd.DataFrame(
         {
@@ -25,6 +31,36 @@ def test_write_expression_rate_vs_onset_scatter_uses_successful_finite_rows(tmp_
     )
     assert output_plot.is_file()
     assert output_plot.stat().st_size > 0
+
+
+def test_expression_rate_vs_onset_scatter_uses_traces_style_grid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+    real_subplots = plot_fit.plt.subplots
+
+    def fake_subplots(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return real_subplots(*args, **kwargs)
+
+    monkeypatch.setattr(plot_fit.plt, "subplots", fake_subplots)
+    df = pd.DataFrame(
+        {
+            "slide_channel": [0, 0, 1, 1],
+            "success": [True, True, True, True],
+            "translation_onset": [10.0, 12.0, 20.0, 22.0],
+            "expression_rate": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+    plot_fit.write_expression_rate_vs_onset_scatter(
+        df,
+        output_plot=tmp_path / "expression_rate_vs_onset.png",
+        slide_channel_names={0: "A", 1: "B"},
+        columns=3,
+    )
+    assert captured["args"][:2] == (1, 3)
+    assert captured["kwargs"]["squeeze"] is False
 
 
 def test_run_plot_fit_writes_expression_rate_vs_onset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

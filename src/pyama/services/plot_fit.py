@@ -89,6 +89,7 @@ def run_plot_fit(
         df,
         output_plot=rate_vs_onset_plot,
         slide_channel_names=slide_channel_names,
+        columns=columns,
     )
     written_paths.append(rate_vs_onset_plot)
     resolved_timeseries_csvs = infer_timeseries_csvs(resolved_fit_csv)
@@ -212,11 +213,31 @@ def write_fit_boxplot(
     plt.close(fig)
 
 
+def pearson_r(x: np.ndarray, y: np.ndarray) -> float | None:
+    if x.size != y.size or x.size < 2:
+        return None
+    if not np.isfinite(x).all() or not np.isfinite(y).all():
+        return None
+    if float(np.std(x, ddof=0)) == 0.0 or float(np.std(y, ddof=0)) == 0.0:
+        return None
+    r = float(np.corrcoef(x, y)[0, 1])
+    if not math.isfinite(r):
+        return None
+    return r
+
+
+def pearson_annotation(r: float | None, n: int) -> str:
+    if r is None:
+        return f"n = {n}"
+    return f"r = {r:.2f}\nn = {n}"
+
+
 def write_expression_rate_vs_onset_scatter(
     df: pd.DataFrame,
     *,
     output_plot: Path,
     slide_channel_names: dict[int, str],
+    columns: int = 3,
 ) -> None:
     scatter_df = df.loc[df["success"]].copy()
     finite = np.isfinite(scatter_df["expression_rate"]) & np.isfinite(scatter_df["translation_onset"])
@@ -225,32 +246,41 @@ def write_expression_rate_vs_onset_scatter(
         raise ValueError("No successful finite rows available to plot expression rate vs translation onset")
 
     slide_channels = sorted(scatter_df["slide_channel"].unique().tolist())
-    fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
-    for slide_channel in slide_channels:
+    rows = math.ceil(len(slide_channels) / columns)
+    fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
+    axes_flat = axes.flatten()
+
+    for ax, slide_channel in zip(axes_flat, slide_channels):
         group = scatter_df.loc[scatter_df["slide_channel"] == slide_channel]
-        label = slide_channel_names.get(slide_channel, str(slide_channel))
-        ax.scatter(
-            group["translation_onset"].to_numpy(dtype=float),
-            group["expression_rate"].to_numpy(dtype=float),
-            label=label,
+        x = group["translation_onset"].to_numpy(dtype=float)
+        y = group["expression_rate"].to_numpy(dtype=float)
+        trace_color, _trace_alpha = trace_color_alpha_from_fluor_name(
+            slide_channel_names.get(slide_channel, f"slide channel {slide_channel}")
+        )
+        ax.scatter(x, y, color=trace_color, alpha=0.55, s=18)
+        ax.set_title(
+            plot_timeseries.subplot_title(
+                slide_channel, slide_channel_names=slide_channel_names
+            )
+        )
+        ax.set_xlabel("translation onset")
+        ax.set_ylabel("expression rate")
+        x_low, x_high = plot_timeseries.percentile_ylim(x)
+        y_low, y_high = plot_timeseries.percentile_ylim(y)
+        ax.set_xlim(x_low, x_high)
+        ax.set_ylim(y_low, y_high)
+        ax.annotate(
+            pearson_annotation(pearson_r(x, y), int(x.size)),
+            xy=(0.05, 0.95),
+            xycoords="axes fraction",
+            va="top",
+            ha="left",
         )
 
-    x = scatter_df["translation_onset"].to_numpy(dtype=float)
-    y = scatter_df["expression_rate"].to_numpy(dtype=float)
-    n = int(x.size)
-    with np.errstate(invalid="ignore"):
-        r = float(np.corrcoef(x, y)[0, 1]) if n >= 2 else float("nan")
-    ax.annotate(
-        f"r = {r:.2f}\nn = {n}",
-        xy=(0.05, 0.95),
-        xycoords="axes fraction",
-        va="top",
-        ha="left",
-    )
-    ax.set_xlabel("translation onset")
-    ax.set_ylabel("expression rate")
-    ax.legend()
+    for ax in axes_flat[len(slide_channels):]:
+        ax.axis("off")
 
+    fig.tight_layout()
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
