@@ -6,11 +6,10 @@ from pathlib import Path
 import pandas as pd
 
 from pyama import core as paths
-from pyama.core.export import write_csv_and_parallel_xlsx
+from pyama.core.export import write_xlsx
 from pyama.core.slide import SlideMapping
 from pyama.core.timeseries import parse_timeseries_path, resolve_slide_channel_from_path
 
-SAMPLES_DIRNAME = "samples"
 TRACE_COLUMNS = (
     "slide_channel",
     "sample",
@@ -33,16 +32,27 @@ def filesystem_safe_sample_name(sample_name: str) -> str:
 
 
 def sample_pack_dir(results_dir: Path, sample_name: str) -> Path:
-    return results_dir.resolve() / SAMPLES_DIRNAME / filesystem_safe_sample_name(sample_name)
+    return results_dir.resolve() / filesystem_safe_sample_name(sample_name)
 
 
-def write_sample_traces_packs(workspace: Path, mapping: SlideMapping) -> list[Path]:
+def position_lookup(mapping: SlideMapping) -> dict[int, tuple[int, str]]:
+    lookup: dict[int, tuple[int, str]] = {}
+    for slide_channel, entry in mapping.items():
+        for position in entry.positions:
+            lookup[position] = (slide_channel, entry.sample_name)
+    return lookup
+
+
+def write_sample_traces_xlsx(workspace: Path, mapping: SlideMapping) -> list[Path]:
     workspace = workspace.resolve()
-    timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_timeseries_dir(workspace))
+    timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_analysis_dir(workspace))
     results_dir = paths.workspace_results_dir(workspace)
     frames_by_sample: dict[str, list[pd.DataFrame]] = {}
     for csv_path in timeseries_csvs:
-        slide_channel = resolve_slide_channel_from_path(csv_path, mapping)
+        try:
+            slide_channel = resolve_slide_channel_from_path(csv_path, mapping)
+        except ValueError:
+            continue
         sample_name = mapping[slide_channel].sample_name
         position, _signal_channel = parse_timeseries_path(csv_path)
         df = paths.load_timeseries_csv(csv_path)
@@ -58,33 +68,41 @@ def write_sample_traces_packs(workspace: Path, mapping: SlideMapping) -> list[Pa
     for sample_name, frames in frames_by_sample.items():
         combined = pd.concat(frames, ignore_index=True)
         combined = combined.sort_values(["slide_channel", "pos", "roi", "t"]).reset_index(drop=True)
-        output_csv = sample_pack_dir(results_dir, sample_name) / "traces.csv"
-        write_csv_and_parallel_xlsx(combined, output_csv)
-        written.append(output_csv)
+        output_xlsx = sample_pack_dir(results_dir, sample_name) / "traces.xlsx"
+        if write_xlsx(combined, output_xlsx) is not None:
+            written.append(output_xlsx)
     return written
 
 
-def write_sample_table_packs(
+def write_sample_table_xlsx(
     workspace: Path,
     mapping: SlideMapping,
     *,
     kind: str,
-    combined_csv: Path,
+    df: pd.DataFrame,
 ) -> list[Path]:
-    df = pd.read_csv(combined_csv)
-    if "slide_channel" not in df.columns:
-        raise ValueError(f"{combined_csv} is missing required column: slide_channel")
+    if "pos" not in df.columns:
+        raise ValueError(f"{kind} table is missing required column: pos")
     results_dir = paths.workspace_results_dir(workspace)
-    samples: dict[str, list[int]] = {}
-    for slide_channel, entry in mapping.items():
-        samples.setdefault(entry.sample_name, []).append(slide_channel)
+    lookup = position_lookup(mapping)
+    sample_frames: dict[str, list[pd.DataFrame]] = {}
+    for position, group in df.groupby("pos", sort=True):
+        mapped = lookup.get(int(position))
+        if mapped is None:
+            continue
+        slide_channel, sample_name = mapped
+        sample_df = group.copy()
+        sample_df["slide_channel"] = slide_channel
+        sample_df["sample"] = sample_name
+        sample_frames.setdefault(sample_name, []).append(sample_df)
 
     written: list[Path] = []
-    for sample_name, slide_channels in samples.items():
-        sample_df = df.loc[df["slide_channel"].isin(slide_channels)].copy()
-        if sample_df.empty:
-            continue
-        output_csv = sample_pack_dir(results_dir, sample_name) / f"{kind}.csv"
-        write_csv_and_parallel_xlsx(sample_df, output_csv)
-        written.append(output_csv)
+    for sample_name, frames in sample_frames.items():
+        combined = pd.concat(frames, ignore_index=True)
+        sort_columns = [column for column in ("slide_channel", "pos", "roi") if column in combined.columns]
+        if sort_columns:
+            combined = combined.sort_values(sort_columns).reset_index(drop=True)
+        output_xlsx = sample_pack_dir(results_dir, sample_name) / f"{kind}.xlsx"
+        if write_xlsx(combined, output_xlsx) is not None:
+            written.append(output_xlsx)
     return written

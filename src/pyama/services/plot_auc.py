@@ -7,105 +7,94 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
+from pyama import core as paths
 from pyama import core as plot_layout
-from pyama.core import (
-    boxplot_tick_labels,
-    boxplot_x_axis_label,
-)
+from pyama.core.slide import SlideMapping
+from pyama.services import auc
 from pyama.services.plot_timeseries import percentile_ylim
+from pyama.services.sample_packs import sample_pack_dir, write_sample_table_xlsx
 
 
-
-def render_plot_auc(
-    auc_csv: Path,
+def run_plot_auc(
     *,
-    output: Path | None,
-    slide_channel_names: dict[int, str],
-) -> tuple[Path, Path]:
-    resolved_auc_csv = auc_csv.resolve()
-    df = load_auc_csv(resolved_auc_csv)
-    resolved_output_plot = default_output_plot_path(resolved_auc_csv, output)
-    log_output_plot = log_output_plot_path(resolved_output_plot)
-    write_auc_boxplot(
-        df,
-        resolved_output_plot,
-        slide_channel_names=slide_channel_names,
-        log_scale=False,
-    )
-    write_auc_boxplot(
-        df,
-        log_output_plot,
-        slide_channel_names=slide_channel_names,
-        log_scale=True,
-    )
-    return resolved_output_plot, log_output_plot
+    workspace: Path,
+    mapping: SlideMapping,
+    slide_channel_names: dict[int, str] | None = None,
+) -> list[Path]:
+    """Read analysis/PosN/auc.csv and write results/<sample>/ auc.xlsx + pngs."""
+    workspace = workspace.resolve()
+    df = auc.load_analysis_auc_table(workspace)
+    labels = slide_channel_names or paths.slide_channel_labels(mapping)
+    results_dir = paths.workspace_results_dir(workspace)
+    written: list[Path] = []
+    written.extend(write_sample_table_xlsx(workspace, mapping, kind="auc", df=df))
 
-
-def load_auc_csv(auc_csv: Path) -> pd.DataFrame:
-    df = pd.read_csv(auc_csv)
-    required = {"auc", "slide_channel"}
-    missing = required.difference(df.columns)
-    if missing:
-        raise ValueError(f"{auc_csv} is missing required columns for AUC plotting: {sorted(missing)}")
-    df = df.dropna(subset=["slide_channel", "auc"]).copy()
-    if df.empty:
-        raise ValueError(f"{auc_csv} has no AUC rows with slide_channel values")
-    df["slide_channel"] = df["slide_channel"].astype(int)
-    df["auc"] = df["auc"].astype(float)
-    return df.sort_values(["slide_channel"]).reset_index(drop=True)
-
-
-def default_output_plot_path(auc_csv: Path, output: Path | None) -> Path:
-    if output is not None:
-        return output.resolve()
-    return (auc_csv.parent / "auc.png").resolve()
+    lookup_positions = {
+        slide_channel: set(entry.positions) for slide_channel, entry in mapping.items()
+    }
+    for slide_channel, entry in mapping.items():
+        sample_df = df.loc[df["pos"].astype(int).isin(lookup_positions[slide_channel])].copy()
+        if sample_df.empty:
+            continue
+        dest = sample_pack_dir(results_dir, entry.sample_name)
+        label = labels.get(slide_channel, entry.sample_name)
+        written.append(
+            write_sample_boxplot(
+                sample_df["auc"].to_numpy(dtype=float),
+                sample_label=label,
+                ylabel="AUC",
+                output_plot=dest / "auc.png",
+                log_scale=False,
+            )
+        )
+ mar
+        written.append(
+            write_sample_boxplot(
+                sample_df["auc"].to_numpy(dtype=float),
+                sample_label=label,
+                ylabel="AUC",
+                output_plot=dest / "auc_log.png",
+                log_scale=True,
+            )
+        )
+    return written
 
 
 def log_output_plot_path(output_plot: Path) -> Path:
     return output_plot.with_name(f"{output_plot.stem}_log{output_plot.suffix}")
 
 
-def write_auc_boxplot(
-    df: pd.DataFrame,
-    output_plot: Path,
+def write_sample_boxplot(
+    values: np.ndarray,
     *,
-    slide_channel_names: dict[int, str],
+    sample_label: str,
+    ylabel: str,
+    output_plot: Path,
     log_scale: bool,
-) -> None:
-    positive_df = df.loc[df["auc"] > 0].copy()
-    if positive_df.empty:
-        raise ValueError("No positive AUC values available for plotting")
-
-    slide_channels = sorted(positive_df["slide_channel"].unique().tolist())
-    trace_counts = [
-        int(positive_df.loc[positive_df["slide_channel"] == slide_channel, "auc"].shape[0])
-        for slide_channel in slide_channels
-    ]
-    grouped_values = [
-        positive_df.loc[positive_df["slide_channel"] == slide_channel, "auc"].to_numpy(dtype=float)
-        for slide_channel in slide_channels
-    ]
+) -> Path:
+    arr = np.asarray(values, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if log_scale:
+        arr = arr[arr > 0]
+    if arr.size == 0:
+        raise ValueError(f"No finite rows available to plot {ylabel!r} for {sample_label!r}")
 
     fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
-    ax.boxplot(
-        grouped_values,
-        tick_labels=boxplot_tick_labels(slide_channels, trace_counts, slide_channel_names),
-    )
-
-    ax.set_xlabel(boxplot_x_axis_label(slide_channel_names))
-    ax.set_ylabel("AUC")
+    n = int(arr.size)
+    ax.boxplot([arr], tick_labels=[f"{sample_label}\n(n={n})"])
+    ax.set_xlabel("condition")
+    ax.set_ylabel(ylabel)
     if log_scale:
         ax.set_yscale("log")
     else:
-        arrays = [values for values in grouped_values if values.size]
-        y_low, y_high = percentile_ylim(np.concatenate(arrays) if arrays else np.array([]))
+        y_low, y_high = percentile_ylim(arr)
         ax.set_ylim(y_low, y_high)
 
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
+    return output_plot
 
 
 def format_written_auc_plot_messages(output_plots: list[Path]) -> list[str]:
@@ -114,16 +103,3 @@ def format_written_auc_plot_messages(output_plots: list[Path]) -> list[str]:
 
 def format_written_auc_plot_message(output_plot: Path) -> str:
     return format_written_auc_plot_messages([output_plot])[0]
-
-
-def run_plot_auc(
-    *,
-    auc_csv: Path,
-    slide_channel_names: dict[int, str],
-    output: Path | None = None,
-) -> tuple[Path, Path]:
-    return render_plot_auc(
-        auc_csv,
-        output=output,
-        slide_channel_names=slide_channel_names,
-    )
