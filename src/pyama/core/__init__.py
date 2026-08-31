@@ -1,7 +1,11 @@
 from pyama.core.assay import (
     assay_json_path,
     format_inclusive_position_spec,
-    write_assay_json,
+    load_assay_json,
+    merge_analyze_assay_json,
+    merge_results_assay_json,
+    read_assay_signal_channels,
+    resolve_signal_channels,
 )
 from pyama.core.bbox import (
     RoiBbox,
@@ -93,6 +97,9 @@ __all__ = [
     "discover_signal_channels",
     "discover_timeseries_csvs",
     "format_inclusive_position_spec",
+    "load_assay_json",
+    "merge_analyze_assay_json",
+    "merge_results_assay_json",
     "infer_workspace_for_plot_csv",
     "infer_workspace_for_timeseries_dir",
     "is_workspace_metrics_timeseries_csv",
@@ -106,9 +113,11 @@ __all__ = [
     "parse_timeseries_path",
     "position_dir",
     "quantile_column_name",
+    "read_assay_signal_channels",
     "read_position_index",
     "read_roi_stack",
     "require_analysis_dir",
+    "resolve_signal_channels",
     "resolve_slide_channel",
     "resolve_slide_channel_from_path",
     "resolve_slide_path",
@@ -125,7 +134,6 @@ __all__ = [
     "workspace_results_dir",
     "workspace_roi_pos_dir",
     "workspace_timeseries_dir",
-    "write_assay_json",
     "write_metrics_csv",
     "write_slide_mapping",
 ]
