@@ -5,11 +5,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pyama.core.export import write_csv_and_parallel_xlsx
+from pyama.core.export import write_csv
 from pyama.core.roi import PositionIndex, read_roi_stack, roi_frame_2d
 
 # Estimate background from the ROI's 10th intensity percentile.
 UNMASKED_BACKGROUND_QUANTILE = 0.1
+
 
 def quantile_column_name(quartile: float) -> str:
     quartile_pct = quartile * 100.0
@@ -120,7 +121,7 @@ def compute_timeseries_metrics(
 def write_metrics_csv(df: pd.DataFrame, output_csv: Path) -> None:
     if df.empty:
         raise ValueError("No rows to write")
-    write_csv_and_parallel_xlsx(df, output_csv)
+    write_csv(df, output_csv)
 
 
 def load_timeseries_csv(csv_path: Path) -> pd.DataFrame:
