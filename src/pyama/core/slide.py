@@ -91,7 +91,7 @@ def parse_slide_mapping_spec(
             raise ValueError(
                 f"{source_label}: expected 'positions@signal_channel#sample_name', got {segment!r}"
             )
- mar
+
         before_hash, sample_name = segment.rsplit("#", 1)
         sample_name = sample_name.strip()
         if not sample_name:
@@ -177,7 +177,6 @@ def validate_slide_mapping(raw: object, *, source: Path | None = None) -> SlideM
             raise ValueError(
                 f"sample_name for slide channel {slide_channel} must be a string, got {raw_sample_name!r}"
             )
- mar
         sample_name = raw_sample_name.strip()
         if not sample_name:
             raise ValueError(f"sample_name for slide channel {slide_channel} must be non-empty")
