@@ -1,5 +1,6 @@
-# Start Jupyter in the notebooks/ folder
+# Start Jupyter in the notebooks/ folder (local laptop).
 # Run from repo: scripts live under scripts/; run from bundle: same folder as pyproject.toml and .uv/
+# JupyterHub: use scripts/jupyter-hub.ps1 instead (do not start a second server).
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

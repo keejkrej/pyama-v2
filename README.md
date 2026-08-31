@@ -38,9 +38,19 @@ Nontechnical path while Studio is still in dev: Aligner → these notebooks. Pow
 uv sync --extra notebook
 ```
 
-### Run notebooks
+### Run notebooks (laptop)
 
-- macOS / Linux: `bash scripts/notebook.sh`
-- Windows: `.\scripts\notebook.ps1`
+- macOS / Linux: `bash scripts/jupyter-notebook.sh`
+- Windows: `.\scripts\jupyter-notebook.ps1`
 
 Opens Jupyter on the `notebooks/` folder (`crop.ipynb`, `analyze.ipynb`).
+
+### JupyterHub
+
+Unpack or copy this folder into your JupyterHub home. Then:
+
+```bash
+bash scripts/jupyter-hub.sh
+```
+
+Refresh the browser tab (or open JupyterHub again). Open `notebooks/crop.ipynb` (then `analyze.ipynb`). In the Kernel menu, pick **Lisca** if it is not already selected. In the Config cell, set `WORKSPACE` and `SOURCE` to the mounted data folder.

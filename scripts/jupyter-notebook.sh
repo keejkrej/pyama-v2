@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Start Jupyter in the notebooks/ folder
+# Start Jupyter in the notebooks/ folder (local laptop).
 # Dev: from repo root. Prod (pyama.zip): run from extracted bundle root after install.sh
+# JupyterHub: use scripts/jupyter-hub.sh instead (do not start a second server).
 
 set -euo pipefail
 
