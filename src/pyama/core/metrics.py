@@ -11,7 +11,6 @@ from pyama.core.roi import PositionIndex, read_roi_stack, roi_frame_2d
 # Estimate background from the ROI's 10th intensity percentile.
 UNMASKED_BACKGROUND_QUANTILE = 0.1
 
-
 def quantile_column_name(quartile: float) -> str:
     quartile_pct = quartile * 100.0
     if abs(quartile_pct - round(quartile_pct)) > 1e-9:

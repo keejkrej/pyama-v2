@@ -9,7 +9,6 @@ from pyama.core.slide import SlideMapping
 _TRACE_ALPHA = 0.1
 _WORKSPACE_METRICS_STEM = re.compile(r"^ch\d+$")
 
-
 def trace_color_alpha_from_fluor_name(name: str) -> tuple[str, float]:
     haystack = name.lower()
     if "egfp" in haystack:
