@@ -3,7 +3,8 @@
 Both notebooks update this file. Neither clobbers the other's keys:
 
 - ``analyze.ipynb`` writes ``type`` (new file), ``interval``, ``analysis.maxOnsetMinutes``,
-  and ``analysis.channels`` (``signal`` from ``SIGNAL_CHANNEL``, ``mask`` 0).
+  ``analysis.skipSegment`` (true; this package has no segmentation step), and
+  ``analysis.channels`` (``signal`` from ``SIGNAL_CHANNEL``, ``mask`` 0).
 - ``results.ipynb`` writes ``samples[]`` only. It does not invent a signal channel.
 """
 
@@ -84,6 +85,7 @@ def merge_analyze_assay_json(
     if not isinstance(analysis, dict):
         analysis = {}
     analysis["maxOnsetMinutes"] = float(max_onset_minutes)
+    analysis["skipSegment"] = True
     channels = analysis.get("channels")
     if not isinstance(channels, dict):
         channels = {}

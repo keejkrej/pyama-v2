@@ -30,6 +30,7 @@ def test_merge_analyze_assay_json_creates_without_samples(tmp_path: Path) -> Non
     assert payload["type"] == "transfection"
     assert payload["interval"] == {"value": 10.0, "unit": "minute"}
     assert payload["analysis"]["maxOnsetMinutes"] == 120.0
+    assert payload["analysis"]["skipSegment"] is True
     assert payload["analysis"]["channels"] == {"mask": 0, "signal": [1]}
     assert "samples" not in payload
 
@@ -49,6 +50,7 @@ def test_merge_results_does_not_rewrite_analysis_channels(tmp_path: Path) -> Non
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["analysis"]["channels"]["signal"] == [1]
     assert payload["analysis"]["maxOnsetMinutes"] == 120.0
+    assert payload["analysis"]["skipSegment"] is True
     assert payload["interval"] == {"value": 10.0, "unit": "minute"}
     assert payload["samples"][0]["slideChannel"] == 0
     assert payload["samples"][0]["name"] == "A"
@@ -75,6 +77,7 @@ def test_merge_analyze_preserves_existing_samples(tmp_path: Path) -> None:
     assert payload["interval"]["value"] == 5.0
     assert payload["analysis"]["channels"]["signal"] == [2]
     assert payload["analysis"]["maxOnsetMinutes"] == 0.0
+    assert payload["analysis"]["skipSegment"] is True
 
 
 def test_merge_results_alone_does_not_invent_channels(tmp_path: Path) -> None:
