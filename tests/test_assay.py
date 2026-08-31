@@ -33,6 +33,7 @@ def test_merge_analyze_assay_json_creates_without_samples(tmp_path: Path) -> Non
     assert payload["analysis"]["skipSegment"] is True
     assert payload["analysis"]["channels"] == {"mask": 0, "signal": [1]}
     assert "samples" not in payload
+    assert "sampleChannels" not in payload
 
 
 def test_merge_results_does_not_rewrite_analysis_channels(tmp_path: Path) -> None:
@@ -46,7 +47,7 @@ def test_merge_results_does_not_rewrite_analysis_channels(tmp_path: Path) -> Non
         {"name": "A", "positions": list(range(0, 40))},
         {"name": "B", "positions": [40, 41]},
     ]
-    path = merge_results_assay_json(tmp_path, samples=samples)
+    path = merge_results_assay_json(tmp_path, samples=samples, signal_channels=[9])
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["analysis"]["channels"]["signal"] == [1]
     assert payload["analysis"]["maxOnsetMinutes"] == 120.0
@@ -56,9 +57,68 @@ def test_merge_results_does_not_rewrite_analysis_channels(tmp_path: Path) -> Non
     assert payload["samples"][0]["name"] == "A"
     assert payload["samples"][0]["positions"] == "0:39"
     assert payload["samples"][1]["positions"] == "40:41"
+    assert "sampleChannels" not in payload
     mapping = samples_to_mapping(samples, signal_channel=1)
     assert mapping[0].positions[0] == 0
     assert mapping[0].positions[-1] == 39
+
+
+def test_merge_analyze_preserves_studio_sample_channels(tmp_path: Path) -> None:
+    (tmp_path / "assay.json").write_text(
+        json.dumps(
+            {
+                "type": "transfection",
+                "sampleChannels": [{"slideChannel": 0, "signal": [2]}],
+                "analysis": {"sampleChannels": [{"slideChannel": 1, "signal": [3]}]},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    path = merge_analyze_assay_json(
+        tmp_path,
+        interval_minutes=10.0,
+        signal_channel=1,
+        max_onset_minutes=120.0,
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["analysis"]["channels"]["signal"] == [1]
+    assert payload["sampleChannels"] == [{"slideChannel": 0, "signal": [2]}]
+    assert payload["analysis"]["sampleChannels"] == [{"slideChannel": 1, "signal": [3]}]
+
+
+def test_merge_results_fills_missing_signal_as_one_element_list(tmp_path: Path) -> None:
+    path = merge_results_assay_json(
+        tmp_path,
+        samples=[{"name": "A", "positions": [0]}],
+        signal_channels=[2, 5],
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["analysis"]["channels"]["signal"] == [2]
+    assert "sampleChannels" not in payload
+    assert "sampleChannels" not in payload["analysis"]
+
+
+def test_merge_results_preserves_existing_sample_channels(tmp_path: Path) -> None:
+    (tmp_path / "assay.json").write_text(
+        json.dumps(
+            {
+                "type": "transfection",
+                "sampleChannels": [{"slideChannel": 0, "signal": [4]}],
+                "analysis": {"channels": {"signal": [1, 2], "mask": 0}},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    path = merge_results_assay_json(
+        tmp_path,
+        samples=[{"name": "A", "positions": [0]}],
+        signal_channels=[9],
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["analysis"]["channels"]["signal"] == [1, 2]
+    assert payload["sampleChannels"] == [{"slideChannel": 0, "signal": [4]}]
 
 
 def test_merge_analyze_preserves_existing_samples(tmp_path: Path) -> None:
@@ -89,6 +149,7 @@ def test_merge_results_alone_does_not_invent_channels(tmp_path: Path) -> None:
     assert payload["samples"][0]["name"] == "A"
     assert "analysis" not in payload
     assert "interval" not in payload
+    assert "sampleChannels" not in payload
 
 
 def test_resolve_signal_channels_reads_assay_json(tmp_path: Path) -> None:

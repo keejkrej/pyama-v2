@@ -4,8 +4,11 @@ Both notebooks update this file. Neither clobbers the other's keys:
 
 - ``analyze.ipynb`` writes ``type`` (new file), ``interval``, ``analysis.maxOnsetMinutes``,
   ``analysis.skipSegment`` (true; this package has no segmentation step), and
-  ``analysis.channels`` (``signal`` from ``SIGNAL_CHANNEL``, ``mask`` 0).
-- ``results.ipynb`` writes ``samples[]`` only. It does not invent a signal channel.
+  ``analysis.channels`` (``signal`` from ``SIGNAL_CHANNEL`` as a one-element list, ``mask`` 0).
+  It does not write ``sampleChannels``.
+- ``results.ipynb`` writes ``samples[]``. If ``analysis.channels.signal`` is missing, it may
+  write that key as a one-element list from analyze / ``analysis/PosN/ch*.csv``. It does not
+  invent a Config ``SIGNAL_CHANNEL`` and does not write ``sampleChannels``.
 """
 
 from __future__ import annotations
@@ -96,12 +99,45 @@ def merge_analyze_assay_json(
     return _dump_assay_json(workspace, payload)
 
 
-def merge_results_assay_json(workspace: Path, *, samples: list[object]) -> Path:
-    """Merge ``samples[]`` into ``workspace/assay.json``. Does not rewrite ``analysis.channels``."""
+def merge_results_assay_json(
+    workspace: Path,
+    *,
+    samples: list[object],
+    signal_channels: list[int] | None = None,
+) -> Path:
+    """Merge ``samples[]`` into ``workspace/assay.json``.
+
+    Does not rewrite an existing ``analysis.channels.signal`` list. If ``signal_channels``
+    is given and that key is missing, writes a one-element list from the first resolved
+    channel. Does not write ``sampleChannels``.
+    """
     payload = load_assay_json(workspace)
     mapping = samples_to_mapping(samples, signal_channel=0)
     payload["samples"] = _samples_payload(mapping)
+    if signal_channels:
+        _fill_missing_signal_channel(payload, signal_channels[0])
     return _dump_assay_json(workspace, payload)
+
+
+def _fill_missing_signal_channel(payload: dict[str, object], signal_channel: object) -> None:
+    if not isinstance(signal_channel, int) or isinstance(signal_channel, bool) or signal_channel < 0:
+        raise ValueError(
+            f"signal_channels must be non-negative integers, got {signal_channel!r}"
+        )
+    analysis = payload.get("analysis")
+    if not isinstance(analysis, dict):
+        analysis = {}
+    channels = analysis.get("channels")
+    if not isinstance(channels, dict):
+        channels = {}
+    existing = channels.get("signal")
+    if isinstance(existing, list) and existing:
+        return
+    if existing is not None and not isinstance(existing, list):
+        return
+    channels["signal"] = [int(signal_channel)]
+    analysis["channels"] = channels
+    payload["analysis"] = analysis
 
 
 def read_assay_signal_channels(workspace: Path) -> list[int] | None:
