@@ -2,7 +2,7 @@
 
 Desktop app and Python analysis package for microscopy ROI workflows.
 
-- `apps/pyama`: Tauri desktop app (`src/` frontend, `src-tauri/` Rust backend)
+- `apps/pyama`: Tauri desktop app (`src/` frontend, `src-tauri` Rust backend)
 - `src/pyama`: Python package for notebook-driven ROI crop, timeseries, AUC, and fitting
 
 Tooling is **Vite+** (`vp` / `vite-plus`).
@@ -25,8 +25,8 @@ The UI talks to the Rust host via **Tauri IPC** (`invoke`). Use `pnpm dev:pyama`
 Experiment configuration lives in Jupyter notebooks. Typical handoff from **LiSCA Aligner** (light align → `bbox/` only, no long crop jobs in the webapp):
 
 1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/` — **this package is the Python crop goal source**
-2. **Analyze** (`notebooks/analyze.ipynb`): Config sets `WORKSPACE`, `INTERVAL_MINUTES`, `MAX_ONSET_MINUTES`, `SIGNAL_CHANNEL` — no sample names. Discovers `roi/Pos*` and writes `analysis/Pos{n}/ch{n}.csv`, `auc.csv`, `fit.csv` (CSV only).
-3. **Results** (`notebooks/results.ipynb`): Config sets sample names + positions, rewrites `assay.json`, and packs `results/<sample>/` (XLSX + single-panel PNG). Re-run plots without repeating analyze.
+2. **Analyze** (`notebooks/analyze.ipynb`): Config sets `WORKSPACE`, `INTERVAL_MINUTES`, `MAX_ONSET_MINUTES`, `SIGNAL_CHANNEL` — no sample names. Discovers `roi/Pos*` and writes `analysis/Pos{n}/ch{n}.csv`, `auc.csv`, `fit.csv` (CSV only). Merges interval and `analysis.channels` into `assay.json` (does not write `samples[]`).
+3. **Results** (`notebooks/results.ipynb`): Config sets sample names + positions, merges `samples[]` into `assay.json` (does not invent the signal channel), and packs `results/<sample>/` (XLSX + single-panel PNG). Re-run plots without repeating analyze.
 
 Nontechnical path while Studio is still in dev: Aligner → these notebooks. Power users/agents often crop here (or `lisca-crop`) then run `transfection` analysis separately.
 
