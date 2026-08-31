@@ -34,7 +34,7 @@ def run_plot_timeseries(
     mapping: SlideMapping,
     slide_channel_names: dict[int, str] | None = None,
 ) -> list[Path]:
-    """Read analysis/ traces and write results/<sample>/ csv+xlsx + single-panel pngs."""
+    """Read analysis/ traces and write results/<sample>/ xlsx + single-panel pngs."""
     if interval <= 0:
         raise ValueError(f"--interval must be > 0, got {interval}")
     workspace = workspace.resolve()
@@ -320,30 +320,6 @@ def expand_degenerate_ylim(low: float, high: float) -> tuple[float, float]:
         return (low, high)
     pad = 1.0 if low == 0 else abs(low) * 0.05
     return (low - pad, high + pad)
-
-
-def subplot_grid(n_panels: int, columns: int = 3):
-    """Traces-style subplot grid: ``ceil(n_panels / columns)`` by ``columns``."""
-    if n_panels < 1:
-        raise ValueError("Need at least one subplot panel")
-    if columns < 1:
-        raise ValueError("columns must be >= 1")
-    rows = math.ceil(n_panels / columns)
-    fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=plot_layout.FIGURE_SIZE_IN)
-    return fig, axes.flatten()
-
-
-def subplot_title(
-    slide_channel: int,
-    trace_count: int | None = None,
-    *,
-    slide_channel_names: dict[int, str] | None = None,
-) -> str:
-    names = slide_channel_names or {}
-    label = names.get(slide_channel, f"slide channel {slide_channel}")
-    if trace_count is None:
-        return label
-    return f"{label} ({trace_count} traces)"
 
 
 def trace_group_columns(df) -> list[str]:
