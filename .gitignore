@@ -43,3 +43,4 @@ __pycache__/
 *.ipynb
 !**/analyze.ipynb
 !**/crop.ipynb
+!**/results.ipynb
