@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pyama.core.constants import RESULTS_DIRNAME, TIMESERIES_DIRNAME
+from pyama.core.constants import ANALYSIS_DIRNAME, RESULTS_DIRNAME
 from pyama.core.slide import SlideMapping
 
 _TRACE_ALPHA = 0.1
@@ -30,8 +30,13 @@ def is_workspace_metrics_timeseries_csv(path: Path) -> bool:
     return bool(_WORKSPACE_METRICS_STEM.fullmatch(path.stem))
 
 
+def workspace_analysis_dir(workspace: Path) -> Path:
+    return workspace.resolve() / ANALYSIS_DIRNAME
+
+
 def workspace_timeseries_dir(workspace: Path) -> Path:
-    return workspace.resolve() / TIMESERIES_DIRNAME
+    """Directory for the timeseries stage; on disk this is ``analysis/``."""
+    return workspace_analysis_dir(workspace)
 
 
 def workspace_results_dir(workspace: Path) -> Path:
@@ -41,7 +46,7 @@ def workspace_results_dir(workspace: Path) -> Path:
 def discover_timeseries_csvs(timeseries_dir: Path) -> list[Path]:
     if not timeseries_dir.is_dir():
         raise ValueError(
-            f"Expected {TIMESERIES_DIRNAME}/ directory at {timeseries_dir}. "
+            f"Expected {ANALYSIS_DIRNAME}/ directory at {timeseries_dir}. "
             "Run timeseries first."
         )
     csvs = sorted(timeseries_dir.glob("Pos*/ch*.csv"), key=lambda path: (path.parent.name, path.name))
@@ -64,6 +69,26 @@ def infer_workspace_for_plot_csv(csv_file: Path) -> Path:
 
 def infer_workspace_for_timeseries_dir(timeseries_dir: Path) -> Path:
     return timeseries_dir.parent.resolve()
+
+
+def require_analysis_dir(workspace: Path) -> Path:
+    analysis_dir = workspace_analysis_dir(workspace)
+    if not analysis_dir.is_dir():
+        raise FileNotFoundError(
+            f"No {ANALYSIS_DIRNAME}/ directory at {analysis_dir}. "
+            "Run notebooks/analyze.ipynb first."
+        )
+    return analysis_dir
+
+
+def discover_signal_channels(analysis_dir: Path) -> list[int]:
+    from pyama.core.timeseries import parse_timeseries_path
+
+    channels: set[int] = set()
+    for csv_path in discover_timeseries_csvs(analysis_dir):
+        _position, signal_channel = parse_timeseries_path(csv_path)
+        channels.add(signal_channel)
+    return sorted(channels)
 
 
 def slide_channel_labels(mapping: SlideMapping) -> dict[int, str]:
