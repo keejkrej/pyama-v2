@@ -26,6 +26,11 @@ from pyama.core.bbox import (
 
 ProgressCallback = Callable[[str], None]
 
+# JupyterHub ulimits are often 1024; unbounded cpu_count workers each holding
+# many TiffWriters exceeds that on a dense ROI grid.
+_DEFAULT_MAX_CROP_WORKERS = 4
+_ROI_WRITER_CHUNK_SIZE = 32
+
 
 @dataclass(frozen=True)
 class CropPositionResult:
@@ -41,8 +46,22 @@ class CropRunResult:
 
 
 def crop_position_worker_count(position_count: int) -> int:
-    """Choose parallel position workers from available CPU cores."""
-    return max(1, min(position_count, os.cpu_count() or 1))
+    """Choose parallel position workers, capped for JupyterHub file-descriptor limits.
+
+    Default is ``min(cpu_count, 4, position_count)``. Set ``PYAMA_CROP_WORKERS``
+    to a positive integer to override the CPU/Hub cap (still limited by
+    ``position_count``).
+    """
+    requested = min(os.cpu_count() or 1, _DEFAULT_MAX_CROP_WORKERS)
+    raw = os.environ.get("PYAMA_CROP_WORKERS", "").strip()
+    if raw:
+        try:
+            parsed = int(raw)
+        except ValueError:
+            parsed = 0
+        if parsed > 0:
+            requested = parsed
+    return max(1, min(position_count, requested))
 
 
 def _crop_frame(frame: np.ndarray, bbox: RoiBbox) -> np.ndarray:
@@ -135,30 +154,42 @@ def _write_roi_tiff_chunk_frame_major(
     frame_shape: tuple[int, int],
     dtype: np.dtype,
     on_frame_done: Callable[[], None] | None,
+    writer_chunk_size: int | None = None,
 ) -> None:
-    """Read each full frame once and append a TIFF page for every ROI in the chunk."""
-    writers: list[tuple[RoiBbox, tifffile.TiffWriter]] = [
-        (bbox, tifffile.TiffWriter(output_dir / f"Roi{bbox.roi}.tif")) for bbox in bboxes
-    ]
-    try:
-        for time_index in time_indices:
-            for channel_index in channel_indices:
-                for z_index in z_indices:
-                    frame = np.asarray(read_frame(pos, time_index, channel_index, z_index))
-                    if frame.shape != frame_shape:
-                        raise ValueError(
-                            f"Inconsistent frame shape at Pos{pos} t={time_index} "
-                            f"c={channel_index} z={z_index}: {frame.shape} vs {frame_shape}"
-                        )
-                    if frame.dtype != dtype:
-                        frame = frame.astype(dtype, copy=False)
-                    for bbox, writer in writers:
-                        writer.write(_crop_frame(frame, bbox), contiguous=True)
-                    if on_frame_done is not None:
-                        on_frame_done()
-    finally:
-        for _, writer in writers:
-            writer.close()
+    """Read each full frame once per ROI-writer chunk and append a TIFF page for every ROI.
+
+    Keeps at most ``writer_chunk_size`` TiffWriters open (default 32) so a dense
+    grid does not exhaust the process file-descriptor limit. Later chunks
+    re-read source frames. Progress is counted on the first chunk only.
+    """
+    chunk_size = _ROI_WRITER_CHUNK_SIZE if writer_chunk_size is None else writer_chunk_size
+    if chunk_size < 1:
+        raise ValueError("writer_chunk_size must be >= 1")
+
+    for chunk_start in range(0, len(bboxes), chunk_size):
+        chunk = bboxes[chunk_start : chunk_start + chunk_size]
+        writers: list[tuple[RoiBbox, tifffile.TiffWriter]] = []
+        try:
+            for bbox in chunk:
+                writers.append((bbox, tifffile.TiffWriter(output_dir / f"Roi{bbox.roi}.tif")))
+            for time_index in time_indices:
+                for channel_index in channel_indices:
+                    for z_index in z_indices:
+                        frame = np.asarray(read_frame(pos, time_index, channel_index, z_index))
+                        if frame.shape != frame_shape:
+                            raise ValueError(
+                                f"Inconsistent frame shape at Pos{pos} t={time_index} "
+                                f"c={channel_index} z={z_index}: {frame.shape} vs {frame_shape}"
+                            )
+                        if frame.dtype != dtype:
+                            frame = frame.astype(dtype, copy=False)
+                        for bbox, writer in writers:
+                            writer.write(_crop_frame(frame, bbox), contiguous=True)
+                        if on_frame_done is not None and chunk_start == 0:
+                            on_frame_done()
+        finally:
+            for _, writer in writers:
+                writer.close()
 
 
 def _crop_position_with_reader(

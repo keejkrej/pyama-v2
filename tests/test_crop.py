@@ -10,10 +10,19 @@ from pyama.readers.base import ImageInfo
 from pyama.services import crop
 
 
-def test_crop_position_worker_count_caps_at_positions(monkeypatch) -> None:
+def test_crop_position_worker_count_caps_at_positions_and_hub_limit(monkeypatch) -> None:
+    monkeypatch.delenv("PYAMA_CROP_WORKERS", raising=False)
     monkeypatch.setattr(crop.os, "cpu_count", lambda: 8)
     assert crop.crop_position_worker_count(3) == 3
-    assert crop.crop_position_worker_count(20) == 8
+    assert crop.crop_position_worker_count(20) == 4
+
+    monkeypatch.setattr(crop.os, "cpu_count", lambda: 2)
+    assert crop.crop_position_worker_count(20) == 2
+
+    monkeypatch.setenv("PYAMA_CROP_WORKERS", "6")
+    monkeypatch.setattr(crop.os, "cpu_count", lambda: 32)
+    assert crop.crop_position_worker_count(20) == 6
+    assert crop.crop_position_worker_count(3) == 3
 
 
 def test_frame_major_crop_reads_each_plane_once(tmp_path: Path) -> None:
@@ -70,3 +79,33 @@ def test_frame_major_crop_reads_each_plane_once(tmp_path: Path) -> None:
     # t=1,c=0,z=0 plane: value base 1000, roi0 x=0..1, roi1 x=2..3
     assert stack0[1, 0, 0, 0, 0] == 1000
     assert stack1[1, 0, 0, 0, 0] == 1002
+
+
+def test_frame_major_writer_chunking_writes_all_rois(tmp_path: Path) -> None:
+    bboxes = [RoiBbox(roi=i, x=i, y=0, w=1, h=1) for i in range(5)]
+    reads: list[tuple[int, int, int, int]] = []
+
+    def read_frame(p: int, t: int, c: int, z: int) -> np.ndarray:
+        reads.append((p, t, c, z))
+        return (np.arange(5, dtype=np.uint16).reshape(1, 5) + np.uint16(100 * t))
+
+    crop._write_roi_tiff_chunk_frame_major(
+        pos=0,
+        bboxes=bboxes,
+        output_dir=tmp_path,
+        read_frame=read_frame,
+        time_indices=[0, 1],
+        channel_indices=[0],
+        z_indices=[0],
+        frame_shape=(1, 5),
+        dtype=np.dtype(np.uint16),
+        on_frame_done=None,
+        writer_chunk_size=2,
+    )
+
+    # 3 chunks (2+2+1) each re-read both time planes.
+    assert len(reads) == 6
+    for i in range(5):
+        stack = read_roi_stack(tmp_path / f"Roi{i}.tif", (2, 1, 1, 1, 1))
+        assert stack[0, 0, 0, 0, 0] == i
+        assert stack[1, 0, 0, 0, 0] == i + 100
