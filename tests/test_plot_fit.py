@@ -15,13 +15,21 @@ def test_pearson_annotation_omits_r_when_undefined() -> None:
     assert plot_fit.pearson_r(np.array([1.0]), np.array([2.0])) is None
 
 
-def test_write_expression_rate_vs_onset_scatter_is_one_axes(
+def test_write_expression_rate_vs_onset_scatter_is_per_sample_subplots_not_overlay(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     kept: list[object] = []
     monkeypatch.setattr(plot_fit.plt, "close", lambda fig=None: kept.append(fig))
+    mapping = samples_to_mapping(
+        [
+            {"name": "A", "positions": [0]},
+            {"name": "B", "positions": [1]},
+        ],
+        signal_channel=1,
+    )
     df = pd.DataFrame(
         {
+            "slide_channel": [0, 0, 1, 1],
             "success": [True, False, True, True],
             "translation_onset": [10.0, 99.0, 20.0, 22.0],
             "expression_rate": [1.0, 99.0, 2.0, 3.0],
@@ -31,18 +39,20 @@ def test_write_expression_rate_vs_onset_scatter_is_one_axes(
     plot_fit.write_expression_rate_vs_onset_scatter(
         df,
         output_plot=output_plot,
-        sample_label="A",
+        slide_channel_names={0: "A", 1: "B"},
+        columns=3,
+        mapping=mapping,
     )
     assert output_plot.is_file()
     fig = kept[0]
     scatter_axes = [ax for ax in fig.axes if ax.collections]
-    assert len(scatter_axes) == 1
-    ax = scatter_axes[0]
-    assert ax.get_title() == "A"
-    assert ax.get_legend() is None
-    assert ax.get_xlabel() == "translation onset"
-    assert ax.get_ylabel() == "expression rate"
-    assert len(ax.collections) == 1
+    assert len(scatter_axes) == 2
+    assert {ax.get_title() for ax in scatter_axes} == {"A", "B"}
+    for ax in scatter_axes:
+        assert ax.get_legend() is None
+        assert ax.get_xlabel() == "translation onset"
+        assert ax.get_ylabel() == "expression rate"
+        assert len(ax.collections) == 1
 
 
 def _write_analysis_pos(workspace: Path, position: int, *, onset: float, rate: float) -> None:
@@ -76,7 +86,7 @@ def _write_analysis_pos(workspace: Path, position: int, *, onset: float, rate: f
     ).to_csv(pos_dir / "fit.csv", index=False)
 
 
-def test_run_plot_fit_writes_per_sample_scatter_and_root_boxplots(tmp_path: Path) -> None:
+def test_run_plot_fit_writes_scatter_grid_and_root_boxplots(tmp_path: Path) -> None:
     _write_analysis_pos(tmp_path, 0, onset=10.0, rate=1.0)
     _write_analysis_pos(tmp_path, 1, onset=20.0, rate=2.0)
     mapping = samples_to_mapping(
@@ -107,14 +117,14 @@ def test_run_plot_fit_writes_per_sample_scatter_and_root_boxplots(tmp_path: Path
         "protein_lifetime.png",
         "mrna_lifetime.png",
         "area_summary.png",
+        "expression_rate_vs_onset.png",
     ):
         assert not (sample_a / name).exists(), name
-    assert (sample_a / "expression_rate_vs_onset.png").is_file()
+    assert (results / "expression_rate_vs_onset.png").is_file()
     assert (sample_a / "traces_fit.png").is_file()
     assert (sample_a / "traces_fit_shared_y.png").is_file()
     assert (sample_a / "fit.xlsx").is_file()
-    assert not (sample_a / "fit.csv").exists()
-    assert not (results / "expression_rate_vs_onset.png").exists()
+    assert (sample_a / "fit.csv").is_file()
     assert not (results / "traces_fit_shared_y.png").exists()
     assert not (results / "fit.csv").exists()
     for name in (
