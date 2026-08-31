@@ -84,6 +84,13 @@ def run_plot_fit(
             log_scale=False,
         )
         written_paths.append(output_plot)
+    rate_vs_onset_plot = default_rate_vs_onset_plot_path(resolved_fit_csv, output)
+    write_expression_rate_vs_onset_scatter(
+        df,
+        output_plot=rate_vs_onset_plot,
+        slide_channel_names=slide_channel_names,
+    )
+    written_paths.append(rate_vs_onset_plot)
     resolved_timeseries_csvs = infer_timeseries_csvs(resolved_fit_csv)
     fit_trace_plot = default_trace_plot_path(resolved_fit_csv, output)
     write_fitted_trace_grid(
@@ -140,6 +147,11 @@ def default_trace_plot_path(fit_csv: Path, output: Path | None) -> Path:
     return destination_dir / "traces_fit.png"
 
 
+def default_rate_vs_onset_plot_path(fit_csv: Path, output: Path | None) -> Path:
+    destination_dir = fit_csv.parent if output is None else output.resolve()
+    return destination_dir / "expression_rate_vs_onset.png"
+
+
 def infer_timeseries_csvs(fit_csv: Path) -> list[Path]:
     resolved = fit_csv.resolve()
     if resolved.name != "fit.csv":
@@ -194,6 +206,50 @@ def write_fit_boxplot(
             np.concatenate(arrays) if arrays else np.array([])
         )
         ax.set_ylim(y_low, y_high)
+
+    output_plot.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
+    plt.close(fig)
+
+
+def write_expression_rate_vs_onset_scatter(
+    df: pd.DataFrame,
+    *,
+    output_plot: Path,
+    slide_channel_names: dict[int, str],
+) -> None:
+    scatter_df = df.loc[df["success"]].copy()
+    finite = np.isfinite(scatter_df["expression_rate"]) & np.isfinite(scatter_df["translation_onset"])
+    scatter_df = scatter_df.loc[finite].copy()
+    if scatter_df.empty:
+        raise ValueError("No successful finite rows available to plot expression rate vs translation onset")
+
+    slide_channels = sorted(scatter_df["slide_channel"].unique().tolist())
+    fig, ax = plt.subplots(figsize=plot_layout.FIGURE_SIZE_IN)
+    for slide_channel in slide_channels:
+        group = scatter_df.loc[scatter_df["slide_channel"] == slide_channel]
+        label = slide_channel_names.get(slide_channel, str(slide_channel))
+        ax.scatter(
+            group["translation_onset"].to_numpy(dtype=float),
+            group["expression_rate"].to_numpy(dtype=float),
+            label=label,
+        )
+
+    x = scatter_df["translation_onset"].to_numpy(dtype=float)
+    y = scatter_df["expression_rate"].to_numpy(dtype=float)
+    n = int(x.size)
+    with np.errstate(invalid="ignore"):
+        r = float(np.corrcoef(x, y)[0, 1]) if n >= 2 else float("nan")
+    ax.annotate(
+        f"r = {r:.2f}\nn = {n}",
+        xy=(0.05, 0.95),
+        xycoords="axes fraction",
+        va="top",
+        ha="left",
+    )
+    ax.set_xlabel("translation onset")
+    ax.set_ylabel("expression rate")
+    ax.legend()
 
     output_plot.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot, dpi=plot_layout.FIGURE_DPI, bbox_inches="tight")
