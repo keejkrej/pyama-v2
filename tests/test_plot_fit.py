@@ -95,6 +95,7 @@ def test_run_plot_fit_writes_per_sample_scatter_and_root_boxplots(tmp_path: Path
     names = {path.name for path in written}
     assert "expression_rate_vs_onset.png" in names
     assert "traces_fit.png" in names
+    assert "traces_fit_shared_y.png" in names
     results = tmp_path / "results"
     sample_a = results / "A"
     for name in (
@@ -110,9 +111,11 @@ def test_run_plot_fit_writes_per_sample_scatter_and_root_boxplots(tmp_path: Path
         assert not (sample_a / name).exists(), name
     assert (sample_a / "expression_rate_vs_onset.png").is_file()
     assert (sample_a / "traces_fit.png").is_file()
+    assert (sample_a / "traces_fit_shared_y.png").is_file()
     assert (sample_a / "fit.xlsx").is_file()
     assert not (sample_a / "fit.csv").exists()
     assert not (results / "expression_rate_vs_onset.png").exists()
+    assert not (results / "traces_fit_shared_y.png").exists()
     assert not (results / "fit.csv").exists()
     for name in (
         "baseline_intensity.png",
