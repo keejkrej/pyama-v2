@@ -264,3 +264,4 @@ def samples_to_mapping(samples: object, *, signal_channel: int) -> SlideMapping:
             "sample_name": name,
         }
     return validate_slide_mapping(raw)
+
