@@ -19,8 +19,7 @@ from pyama.core import (
     write_metrics_csv,
 )
 from pyama.core.export import parallel_xlsx_path
-
-
+from pyama.services.sample_packs import write_sample_traces_packs
 
 OUTPUT_COLUMNS = ("roi", "t", "area", "background", "sum", "corrected")
 CsvWrittenCallback = Callable[[int, Path, int], None]
@@ -180,6 +179,7 @@ def run_slide_timeseries(
         raise ValueError("Slide mapping defines no valid positions")
 
     written_outputs.sort(key=lambda item: item[0])
+    write_sample_traces_packs(workspace, mapping)
     return SlideTimeseriesRunResult(
         written_outputs=written_outputs,
         skipped_positions={

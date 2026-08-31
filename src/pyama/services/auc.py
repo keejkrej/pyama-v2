@@ -12,6 +12,7 @@ from pyama.core import load_timeseries_csv
 from pyama.core.export import parallel_xlsx_path, write_csv_and_parallel_xlsx
 from pyama.core.slide import SlideMapping
 from pyama.core.timeseries import resolve_slide_channel_from_path
+from pyama.services.sample_packs import write_sample_table_packs
 
 
 GROUP_COLUMNS = ("pos", "roi")
@@ -161,4 +162,6 @@ def run_auc(*, workspace: Path, interval: float, mapping: SlideMapping) -> Path:
     timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_timeseries_dir(workspace))
     results_dir = paths.workspace_results_dir(workspace)
     output_csv = default_output_csv_path(timeseries_csvs, None, results_dir=results_dir)
-    return integrate_auc_csvs(timeseries_csvs, interval=interval, output_csv=output_csv, mapping=mapping)
+    written = integrate_auc_csvs(timeseries_csvs, interval=interval, output_csv=output_csv, mapping=mapping)
+    write_sample_table_packs(workspace, mapping, kind="auc", combined_csv=written)
+    return written

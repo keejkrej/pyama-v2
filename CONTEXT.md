@@ -69,12 +69,15 @@ _Avoid_: crop (as the noun for the region itself — use for the crop step)
 Per-ROI intensity (or derived) values across time.
 Tables are stored per position and signal channel at `timeseries/Pos{n}/ch{n}.csv` with a parallel `.xlsx` file.
 Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`; slide join key comes from the notebook `SLIDE_MAPPING`, not `assay.json`).
+After those CSVs exist, each sample also gets a long `results/samples/<sample>/traces.csv` (and `.xlsx`) with `slide_channel,sample,pos,roi,t,area,background,sum,corrected`. `<sample>` is the filesystem-safe `SLIDE_MAPPING` `sample_name`.
 _Avoid_: trace, curve (as primary term)
 
 **AUC**:
 Area-under-curve summary computed from a Timeseries.
+Combined table: `results/auc.csv`. Each sample also gets its rows at `results/samples/<sample>/auc.csv` (and `.xlsx`).
 _Avoid_: integral score
 
 **Fit**:
 Parametric model fit applied to a Timeseries or AUC result.
+Combined table: `results/fit.csv` (kinetic columns include `translation_onset`). Each sample also gets its rows at `results/samples/<sample>/fit.csv` (and `.xlsx`).
 _Avoid_: regression (as primary term)

@@ -14,6 +14,7 @@ from pyama.core import load_timeseries_csv
 from pyama.core.export import parallel_xlsx_path, write_csv_and_parallel_xlsx
 from pyama.core.slide import SlideMapping
 from pyama.services import auc
+from pyama.services.sample_packs import write_sample_table_packs
 
 
 OUTPUT_COLUMNS = (
@@ -490,10 +491,12 @@ def run_fit(
     timeseries_csvs = paths.discover_timeseries_csvs(paths.workspace_timeseries_dir(workspace))
     results_dir = paths.workspace_results_dir(workspace)
     output_csv = default_output_csv_path(timeseries_csvs, None, results_dir=results_dir)
-    return run_fit_with_jobs(
+    written = run_fit_with_jobs(
         timeseries_csvs,
         interval=interval,
         output_csv=output_csv,
         max_onset_minutes=max_onset_minutes,
         mapping=mapping,
     )
+    write_sample_table_packs(workspace, mapping, kind="fit", combined_csv=written)
+    return written
