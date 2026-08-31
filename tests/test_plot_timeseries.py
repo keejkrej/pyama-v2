@@ -42,10 +42,11 @@ def test_run_plot_timeseries_writes_per_sample_png_and_xlsx(tmp_path: Path) -> N
     assert "area.png" in names
     assert "area_shared_y.png" in names
     assert "traces.xlsx" in names
+    assert "traces.csv" in names
     assert "area_summary.png" not in names
     assert not (tmp_path / "results" / "traces.png").exists()
     assert not (tmp_path / "results" / "traces_shared_y.png").exists()
-    assert not (tmp_path / "results" / "A" / "traces.csv").exists()
+    assert (tmp_path / "results" / "A" / "traces.csv").is_file()
     assert not (tmp_path / "results" / "A" / "area_summary.png").exists()
     assert (tmp_path / "results" / "A" / "traces.xlsx").is_file()
     assert (tmp_path / "results" / "A" / "traces.png").is_file()

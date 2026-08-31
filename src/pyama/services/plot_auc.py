@@ -24,7 +24,7 @@ def run_plot_auc(
     mapping: SlideMapping,
     slide_channel_names: dict[int, str] | None = None,
 ) -> list[Path]:
-    """Write per-sample auc.xlsx and one cross-sample boxplot at results/ root."""
+    """Write per-sample auc.csv/.xlsx and one cross-sample boxplot at results/ root."""
     workspace = workspace.resolve()
     df = auc.load_analysis_auc_table(workspace)
     labels = slide_channel_names or paths.slide_channel_labels(mapping)

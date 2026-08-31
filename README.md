@@ -26,7 +26,7 @@ Experiment configuration lives in Jupyter notebooks. Typical handoff from **LiSC
 
 1. **Crop** (`notebooks/crop.ipynb`): ND2/CZI + `bbox/` → `roi/` — **this package is the Python crop goal source**
 2. **Analyze** (`notebooks/analyze.ipynb`): Config sets `WORKSPACE`, `INTERVAL_MINUTES`, `MAX_ONSET_MINUTES`, `SIGNAL_CHANNEL` — no sample names. Discovers `roi/Pos*` and writes `analysis/Pos{n}/ch{n}.csv`, `auc.csv`, `fit.csv` (CSV only). Merges interval, `analysis.maxOnsetMinutes`, `analysis.skipSegment` (true; no segment step), and `analysis.channels` into `assay.json` (does not write `samples[]`).
-3. **Results** (`notebooks/results.ipynb`): Config sets sample names + positions, merges `samples[]` into `assay.json` (does not invent the signal channel), and packs `results/<sample>/` (XLSX + single-panel PNG). Re-run plots without repeating analyze.
+3. **Results** (`notebooks/results.ipynb`): Config sets sample names + positions, merges `samples[]` into `assay.json` (does not invent the signal channel), and packs `results/{sample}/` (CSV + XLSX + single-panel PNG). Scatter is `results/expression_rate_vs_onset.png` (per-sample subplot grid). Re-run plots without repeating analyze.
 
 Nontechnical path while Studio is still in dev: Aligner → these notebooks. Power users/agents often crop here (or `lisca-crop`) then run `transfection` analysis separately.
 
