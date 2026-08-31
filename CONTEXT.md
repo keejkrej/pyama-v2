@@ -68,7 +68,7 @@ _Avoid_: crop (as the noun for the region itself — use for the crop step)
 **Timeseries**:
 Per-ROI intensity (or derived) values across time.
 The timeseries **stage** writes CSV only under `analysis/Pos{n}/ch{n}.csv` (never XLSX; never `timeseries/`).
-Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`). `analyze.ipynb` is sample-agnostic: it discovers `roi/Pos*` and uses one `SIGNAL_CHANNEL`. Sample names are not written here.
+Columns: `roi`, `t`, `area`, `background`, `sum`, `corrected` (`t` from `index.json` `timeIndices`). `analyze.ipynb` is sample-agnostic: it discovers `roi/Pos*` and uses one `SIGNAL_CHANNEL` (int, zero-based) for every Pos. Sample names and per-sample signal maps are not written here.
 `results.ipynb` packs each sample to `results/{sample}/traces.csv` + `traces.xlsx` plus single-panel `traces.png` / `traces_summary.png` (mean/median/IQR) / `area.png`, and shared-y companions `traces_shared_y.png` / `traces_summary_shared_y.png` / `area_shared_y.png` (same traces; ylim pooled across samples). No `area_summary.png`. `{sample}` is the filesystem-safe Config `SAMPLES[].name`.
 _Avoid_: trace, curve (as primary term)
 
@@ -85,4 +85,4 @@ User-facing pack: `results/{sample}/fit.csv` + `fit.xlsx` plus `traces_fit.png`,
 _Avoid_: regression (as primary term)
 
 **Assay JSON**:
-Both notebooks merge into `workspace/assay.json` (create if missing; never clobber the other notebook’s keys). `analyze.ipynb` writes `type` (new file), `interval`, `analysis.maxOnsetMinutes`, `analysis.skipSegment` (true; this package has no segmentation step), and `analysis.channels` (`signal` from `SIGNAL_CHANNEL`, `mask` 0; no mask Config). It does not write `samples[]`. `results.ipynb` writes `samples[]` (`name`, `positions`, `slideChannel`) only. It does not invent a signal channel: plots read `analysis.channels.signal` or fall back to `analysis/PosN/ch*.csv`. Prefer analyze first, then results.
+Both notebooks merge into `workspace/assay.json` (create if missing; never clobber the other notebook’s keys). `analyze.ipynb` writes `type` (new file), `interval`, `analysis.maxOnsetMinutes`, `analysis.skipSegment` (true; this package has no segmentation step), and `analysis.channels` (`signal` as the one-element list `[SIGNAL_CHANNEL]`, `mask` 0; no mask Config). It does not write `samples[]` or `sampleChannels`. `results.ipynb` writes `samples[]` (`name`, `positions`, `slideChannel`). If `analysis.channels.signal` is missing, it may write that key as a one-element list from analyze / `analysis/PosN/ch*.csv`. It does not invent a Config `SIGNAL_CHANNEL` and does not write `sampleChannels`. Flexible multi-channel `signal` lists and per-slideChannel `sampleChannels` overrides live only in `assay.json` for Studio / lisca-analyze. Prefer analyze first, then results.
